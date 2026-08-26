@@ -1,0 +1,60 @@
+// ============================================================
+// styles.scss — Global design tokens (CSS variables) + font.
+// Dark = default; Light diaktifkan via [data-theme='light'] di <html>
+// (diset dari toggle theme di App, persist di localStorage).
+// ============================================================
+
+/* ---------- Design tokens: DARK (default) ---------- */
+:root {
+  --bg: #0f172a;            // background halaman
+  --bg-deep: #0b1220;       // input / track lebih gelap
+  --panel: #1e293b;         // kartu & panel
+  --panel-2: #24324a;       // panel hover / header tabel
+  --border: #334155;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-faint: #64748b;
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.15);
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --shadow: rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- Design tokens: LIGHT ---------- */
+[data-theme='light'] {
+  --bg: #f1f5f9;
+  --bg-deep: #ffffff;
+  --panel: #ffffff;
+  --panel-2: #f8fafc;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.1);
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --shadow: rgba(15, 23, 42, 0.12);
+}
+
+/* ---------- Reset & base ---------- */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Angka data rata & stabil (tidak goyang saat refresh) */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

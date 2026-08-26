@@ -1,0 +1,27 @@
+# ===== Build artifacts =====
+bin/
+obj/
+dist/
+
+# ===== Dependencies =====
+node_modules/
+
+# ===== Runtime database (di-seed ulang otomatis dari CSV) =====
+*.db
+*.db-shm
+*.db-wal
+
+# ===== Duplikat usang di root (sumber asli: backend/SrsLiba.Api/Data/DummyCsv) =====
+/DummyCsv/
+
+# ===== Logs =====
+*.log
+run.err
+
+# ===== IDE / OS =====
+.vs/
+.vscode/
+*.user
+*.suo
+Thumbs.db
+.DS_Store

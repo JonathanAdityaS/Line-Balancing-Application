@@ -1,0 +1,501 @@
+import { CommonModule } from '@angular/common';
+import { AfterViewInit, Component, ElementRef, inject, OnDestroy, signal, ViewChild } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { ApiService } from './api.service';
+import { KpiDashboardResult, KpiFilter, MasterLookupDto, StationLookupDto, TaktLogDetailDto } from './api.models';
+import { Chart, registerables } from 'chart.js';
+
+Chart.register(...registerables);
+
+const THEME_KEY = 'srs-liba-theme';
+
+@Component({
+  selector: 'app-root',
+  imports: [CommonModule, ReactiveFormsModule],
+  templateUrl: './app.html',
+  styleUrl: './app.scss'
+})
+export class App implements AfterViewInit, OnDestroy {
+  private readonly api = inject(ApiService);
+  private readonly fb = inject(FormBuilder);
+
+  // ---------- Data signals ----------
+  protected readonly dashboard = signal<KpiDashboardResult | null>(null);
+  protected readonly history = signal<TaktLogDetailDto[]>([]);
+  protected readonly historyPage = signal(1);
+  protected readonly historyTotalPages = signal(1);
+  protected readonly historyTotalCount = signal(0);
+  protected readonly pageSize = 25;
+
+  protected readonly cells = signal<MasterLookupDto[]>([]);
+  protected readonly stations = signal<StationLookupDto[]>([]);
+  protected readonly meterTypes = signal<MasterLookupDto[]>([]);
+  protected readonly loading = signal(false);
+  protected readonly error = signal('');
+  protected readonly dbStatus = signal<'connected' | 'disconnected'>('disconnected');
+
+  // ---------- Theme (dark default) ----------
+  protected readonly theme = signal<'dark' | 'light'>('dark');
+
+  // ---------- Skeleton vs spinner ----------
+  protected readonly firstLoadDone = signal(false);
+
+  // ---------- "Diperbarui x lalu" ----------
+  protected readonly lastUpdated = signal<Date | null>(null);
+  protected readonly now = signal(Date.now());
+  private nowTimer?: ReturnType<typeof setInterval>;
+
+  // ---------- Sparkline history: [avg, total, waiting, util, va, unitDites] ----------
+  protected readonly kpiHistory = signal<number[][]>([[], [], [], [], [], []]);
+  private readonly maxHistory = 12;
+
+  // ---------- Auto-refresh ----------
+  protected readonly autoRefresh = signal(false);
+  protected readonly refreshInterval = signal(30);
+  private refreshTimer?: ReturnType<typeof setInterval>;
+
+  protected readonly form = this.fb.group({
+    stationId: [''],
+    cell: [''],
+    meterType: ['']
+  });
+
+  @ViewChild('barChart') barChartRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('lineChart') lineChartRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('pieChart') pieChartRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('trendChart') trendChartRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('flowChart') flowChartRef!: ElementRef<HTMLCanvasElement>;
+
+  private barChart?: Chart;
+  private lineChart?: Chart;
+  private pieChart?: Chart;
+  private trendChart?: Chart;
+  private flowChart?: Chart;
+
+  ngOnInit(): void {
+    // Terapkan theme tersimpan (juga diset lebih awal oleh script di index.html)
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === 'light' || saved === 'dark') {
+      this.theme.set(saved);
+    }
+    document.documentElement.setAttribute('data-theme', this.theme());
+
+    // Ticker "diperbarui x lalu" — update tiap 5 detik
+    this.nowTimer = setInterval(() => this.now.set(Date.now()), 5000);
+
+    this.loadMasters();
+    this.load();
+    this.form.controls.cell.valueChanges.subscribe(cellId => {
+      this.form.controls.stationId.setValue('');
+      this.api.getStations(cellId ?? undefined).subscribe(data => this.stations.set(data));
+    });
+  }
+
+  ngAfterViewInit(): void {}
+
+  ngOnDestroy(): void {
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+    if (this.nowTimer) clearInterval(this.nowTimer);
+  }
+
+  // ============================================================
+  // THEME
+  // ============================================================
+
+  /** Ganti dark/light, persist ke localStorage, chart di-render ulang. */
+  toggleTheme(): void {
+    const next = this.theme() === 'dark' ? 'light' : 'dark';
+    this.theme.set(next);
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem(THEME_KEY, next);
+
+    const d = this.dashboard();
+    if (d) setTimeout(() => this.renderCharts(d));
+  }
+
+  /** Palet warna chart mengikuti theme aktif. */
+  private palette() {
+    const dark = this.theme() === 'dark';
+    return {
+      text: dark ? '#e2e8f0' : '#0f172a',
+      muted: dark ? '#94a3b8' : '#64748b',
+      grid: dark ? '#2b3a52' : '#e2e8f0',
+      panel: dark ? '#1e293b' : '#ffffff',
+      accent: dark ? '#3b82f6' : '#2563eb'
+    };
+  }
+
+  // ============================================================
+  // SPARKLINE & TIMESTAMP
+  // ============================================================
+
+  /** Simpan riwayat 5 KPI (maks 12 titik) untuk sparkline kartu. */
+  private pushKpi(...values: number[]): void {
+    this.kpiHistory.update(hist =>
+      hist.map((arr, i) => [...arr, values[i]].slice(-this.maxHistory))
+    );
+  }
+
+  /** Konversi deret angka → points polyline SVG (viewBox 100x30). */
+  protected sparklinePoints(idx: number): string {
+    const values = this.kpiHistory()[idx] ?? [];
+    if (values.length < 2) return '0,28 100,28';
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+    return values
+      .map((v, i) => `${((i * 100) / (values.length - 1)).toFixed(1)},${(28 - ((v - min) / range) * 26).toFixed(1)}`)
+      .join(' ');
+  }
+
+  /** Lebar bar waiting (maks 100%) — skala 300 detik = penuh. */
+  protected waitBar(seconds: number): number {
+    return Math.min(100, Math.round(seconds / 3));
+  }
+
+  /** Teks "x lalu" untuk timestamp update terakhir. */
+  get updatedAgoText(): string {
+    const lu = this.lastUpdated();
+    if (!lu) return '';
+    const s = Math.max(0, Math.round((this.now() - lu.getTime()) / 1000));
+    if (s < 60) return `${s} detik lalu`;
+    const m = Math.floor(s / 60);
+    return `${m} menit ${s % 60} detik lalu`;
+  }
+
+  // ============================================================
+  // MASTER DATA & LOAD
+  // ============================================================
+
+  loadMasters(): void {
+    this.api.getCells().subscribe({ next: data => this.cells.set(data) });
+    this.api.getStations().subscribe({ next: data => this.stations.set(data) });
+    this.api.getMeterTypes().subscribe({ next: data => this.meterTypes.set(data) });
+  }
+
+  load(): void {
+    this.loading.set(true);
+    this.error.set('');
+    const filter = this.toFilter();
+
+    this.api.getDashboard(filter).subscribe({
+      next: data => {
+        this.dashboard.set(data);
+        this.dbStatus.set('connected');
+        this.lastUpdated.set(new Date());
+        this.firstLoadDone.set(true);
+
+        // Simpan riwayat KPI untuk sparkline (termasuk unit unik yang sudah dites)
+        const s = data.summary;
+        this.pushKpi(s.averagePerStation, s.totalTest, s.overallWaitingAvgSeconds, s.overallUtilizationPercent, s.overallVaPercent, s.totalUniqueUnits);
+
+        setTimeout(() => this.renderCharts(data), 50);
+      },
+      error: () => {
+        this.error.set('API gagal connect');
+        this.dbStatus.set('disconnected');
+        this.loading.set(false);
+      },
+      complete: () => this.loading.set(false)
+    });
+
+    this.loadHistory(filter, 1);
+  }
+
+  loadHistory(filter: KpiFilter, page: number): void {
+    this.api.getHistory(filter, page, this.pageSize).subscribe({
+      next: data => {
+        this.history.set(data.items);
+        this.historyPage.set(data.page);
+        this.historyTotalPages.set(data.totalPages);
+        this.historyTotalCount.set(data.totalCount);
+      },
+      error: () => this.error.set('Gagal memuat history')
+    });
+  }
+
+  goToPage(page: number): void {
+    if (page < 1 || page > this.historyTotalPages()) return;
+    this.loadHistory(this.toFilter(), page);
+  }
+
+  /** Drill-down: klik baris station di Ringkasan Akhir → filter station itu. */
+  selectStation(stationId: string): void {
+    this.form.controls.stationId.setValue(stationId);
+    this.load();
+  }
+
+  /** Reset semua filter lalu muat ulang data. */
+  clearFilters(): void {
+    this.form.patchValue({ stationId: '', cell: '', meterType: '' });
+    this.load();
+  }
+
+  /** Cek apakah ada filter aktif (untuk tombol reset). */
+  get hasActiveFilter(): boolean {
+    const raw = this.form.getRawValue();
+    return Boolean(raw.cell || raw.stationId || raw.meterType);
+  }
+
+  // ============================================================
+  // AUTO-REFRESH
+  // ============================================================
+
+  toggleAutoRefresh(): void {
+    this.autoRefresh.update(v => !v);
+    this.applyAutoRefresh();
+  }
+
+  onIntervalChange(event: Event): void {
+    const value = Number((event.target as HTMLSelectElement).value);
+    this.refreshInterval.set(value);
+    if (this.autoRefresh()) this.applyAutoRefresh();
+  }
+
+  private applyAutoRefresh(): void {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = undefined;
+    }
+    if (this.autoRefresh()) {
+      this.refreshTimer = setInterval(() => this.load(), this.refreshInterval() * 1000);
+    }
+  }
+
+  // ============================================================
+  // EXPORT
+  // ============================================================
+
+  exportExcel(): void {
+    if (typeof window !== 'undefined') {
+      window.open(this.api.exportExcel(this.toFilter()), '_blank');
+    }
+  }
+
+  exportPdf(): void {
+    if (typeof window !== 'undefined') {
+      window.open(this.api.exportPdf(this.toFilter()), '_blank');
+    }
+  }
+
+  // ============================================================
+  // CHARTS
+  // ============================================================
+
+  private renderCharts(data: KpiDashboardResult): void {
+    this.renderBarChart(data);
+    this.renderLineChart(data);
+    this.renderPieChart(data);
+    this.renderTrendChart(data);
+    this.renderFlowChart(data);
+  }
+
+  private baseScales() {
+    const p = this.palette();
+    return {
+      x: { ticks: { color: p.muted }, grid: { color: 'transparent' } },
+      y: { ticks: { color: p.muted }, grid: { color: p.grid } }
+    };
+  }
+
+  private renderBarChart(data: KpiDashboardResult): void {
+    this.barChart?.destroy();
+    const canvas = this.barChartRef?.nativeElement;
+    if (!canvas) return;
+    const p = this.palette();
+    this.barChart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: data.averagePerStation.map(x => x.stationName),
+        datasets: [{
+          label: 'Avg Cycle Time (s)',
+          data: data.averagePerStation.map(x => x.averageCycleTimeSeconds),
+          backgroundColor: p.accent,
+          borderRadius: 6,
+          maxBarThickness: 42
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: this.baseScales()
+      }
+    });
+  }
+
+  private renderLineChart(data: KpiDashboardResult): void {
+    this.lineChart?.destroy();
+    const canvas = this.lineChartRef?.nativeElement;
+    if (!canvas) return;
+    const p = this.palette();
+    this.lineChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: data.averagePerStation.map(x => x.stationName),
+        datasets: [{
+          label: 'Total Test',
+          data: data.averagePerStation.map(x => x.totalTest),
+          borderColor: p.accent,
+          // Gradient fill lembut dari atas ke bawah area chart
+          backgroundColor: (context: any) => {
+            const area = context.chart.chartArea;
+            if (!area) return 'transparent';
+            const g = context.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+            g.addColorStop(0, this.theme() === 'dark' ? 'rgba(59,130,246,0.35)' : 'rgba(37,99,235,0.25)');
+            g.addColorStop(1, 'rgba(59,130,246,0.02)');
+            return g;
+          },
+          fill: true,
+          tension: 0.35,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: this.baseScales()
+      }
+    });
+  }
+
+  // Plugin kecil: teks VA% besar di tengah donut
+  private readonly centerTextPlugin = {
+    id: 'centerText',
+    afterDraw: (chart: Chart) => {
+      const type = (chart.config as { type?: string }).type;
+      if (type !== 'doughnut') return;
+      const meta = chart.getDatasetMeta(0);
+      if (!meta.data.length) return;
+      const el = meta.data[0] as unknown as { x: number; y: number };
+      const ctx = chart.ctx;
+      const p = this.palette();
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '700 22px Inter, sans-serif';
+      ctx.fillStyle = p.text;
+      ctx.fillText(`${this.dashboard()?.summary.overallVaPercent ?? 0}%`, el.x, el.y - 6);
+      ctx.font = '600 9px Inter, sans-serif';
+      ctx.fillStyle = p.muted;
+      ctx.fillText('VALUE ADD', el.x, el.y + 14);
+      ctx.restore();
+    }
+  };
+
+  private renderPieChart(data: KpiDashboardResult): void {
+    this.pieChart?.destroy();
+    const canvas = this.pieChartRef?.nativeElement;
+    if (!canvas) return;
+    const p = this.palette();
+    const totalVa = data.vaNva.reduce((s, x) => s + x.vaTimeSeconds, 0);
+    const totalNva = data.vaNva.reduce((s, x) => s + x.nvaTimeSeconds, 0);
+    this.pieChart = new Chart<'doughnut', number[], string>(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: ['Value-Add', 'Non Value-Add'],
+        datasets: [{
+          data: [totalVa, totalNva],
+          backgroundColor: ['#6366f1', '#f43f5e'],
+          borderColor: p.panel,
+          borderWidth: 3,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '68%',
+        plugins: { legend: { labels: { color: p.muted, usePointStyle: true } } }
+      },
+      plugins: [this.centerTextPlugin]
+    });
+  }
+
+  private renderTrendChart(data: KpiDashboardResult): void {
+    this.trendChart?.destroy();
+    const canvas = this.trendChartRef?.nativeElement;
+    if (!canvas) return;
+    const p = this.palette();
+    this.trendChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: data.utilization.map(x => x.stationName),
+        datasets: [
+          {
+            label: 'Utilization %',
+            data: data.utilization.map(x => x.utilizationPercent),
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245,158,11,0.08)',
+            fill: true,
+            tension: 0.35,
+            pointRadius: 2,
+            borderWidth: 2
+          },
+          {
+            label: 'Waiting Time (s)',
+            data: data.waitingTime.map(x => x.averageWaitingTimeSeconds),
+            borderColor: '#ef4444',
+            backgroundColor: 'transparent',
+            tension: 0.35,
+            pointRadius: 2,
+            borderWidth: 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: p.muted, usePointStyle: true } } },
+        scales: this.baseScales()
+      }
+    });
+  }
+
+  private renderFlowChart(data: KpiDashboardResult): void {
+    this.flowChart?.destroy();
+    const canvas = this.flowChartRef?.nativeElement;
+    if (!canvas) return;
+    const p = this.palette();
+    const totals = [
+      data.unitFlow.reduce((s, x) => s + x.unitsWith1Test, 0),
+      data.unitFlow.reduce((s, x) => s + x.unitsWith2Tests, 0),
+      data.unitFlow.reduce((s, x) => s + x.unitsWith3Tests, 0),
+      data.unitFlow.reduce((s, x) => s + x.unitsWith4Tests, 0),
+      data.unitFlow.reduce((s, x) => s + x.unitsWith5Tests, 0)
+    ];
+    this.flowChart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: ['1 Test', '2 Test', '3 Test', '4 Test', '5 Test (Lulus)'],
+        datasets: [{
+          label: 'Jumlah Unit',
+          data: totals,
+          backgroundColor: ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'],
+          borderRadius: 6,
+          maxBarThickness: 46
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: p.muted }, grid: { color: 'transparent' } },
+          y: { ticks: { color: p.muted, stepSize: 1 }, grid: { color: p.grid } }
+        }
+      }
+    });
+  }
+
+  // ============================================================
+  // FILTER HELPER
+  // ============================================================
+
+  private toFilter(): KpiFilter {
+    const raw = this.form.getRawValue();
+    return {
+      cellId: raw.cell ?? undefined,
+      stationId: raw.stationId ?? undefined,
+      meterTypeId: raw.meterType ?? undefined
+    };
+  }
+}

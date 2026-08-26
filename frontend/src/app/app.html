@@ -1,0 +1,350 @@
+<div class="page">
+  <header class="topbar">
+    <div class="title-area">
+      <h1>Line Balancing Dashboard</h1>
+      <p>
+        Database:
+        <span class="badge" [class.connected]="dbStatus() === 'connected'">
+          {{ dbStatus() | uppercase }}
+        </span>
+        @if (lastUpdated(); as lu) {
+          <span class="updated-ago tabular">· Diperbarui {{ updatedAgoText }}</span>
+        }
+      </p>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn-theme" (click)="toggleTheme()"
+        [title]="theme() === 'dark' ? 'Ganti ke light mode' : 'Ganti ke dark mode'">
+        @if (theme() === 'dark') { ☀ } @else { ☾ }
+      </button>
+      <label class="auto-refresh" [class.active]="autoRefresh()">
+        <input type="checkbox" [checked]="autoRefresh()" (change)="toggleAutoRefresh()" />
+        Auto
+        <select (change)="onIntervalChange($event)" [disabled]="!autoRefresh()" [value]="refreshInterval()">
+          <option value="15">15s</option>
+          <option value="30">30s</option>
+          <option value="60">60s</option>
+        </select>
+      </label>
+      <button type="button" class="btn-primary" (click)="load()">Load Data</button>
+      <button type="button" class="btn-export" (click)="exportExcel()">Export Excel</button>
+      <button type="button" class="btn-export" (click)="exportPdf()">Export PDF</button>
+    </div>
+  </header>
+
+  <section class="filters" [formGroup]="form">
+    <select formControlName="cell">
+      <option value="">All cells</option>
+      @for (cell of cells(); track cell.id) {
+        <option [value]="cell.id">{{ cell.name }}</option>
+      }
+    </select>
+    <select formControlName="stationId">
+      <option value="">All stations</option>
+      @for (station of stations(); track station.id) {
+        <option [value]="station.id">{{ station.name }} ({{ station.cellName }})</option>
+      }
+    </select>
+    <select formControlName="meterType">
+      <option value="">All meter types</option>
+      @for (meter of meterTypes(); track meter.id) {
+        <option [value]="meter.id">{{ meter.name }}</option>
+      }
+    </select>
+    @if (hasActiveFilter) {
+      <button type="button" class="btn-reset" (click)="clearFilters()" title="Reset semua filter">
+        ✕ Reset Filter
+      </button>
+    }
+  </section>
+
+  @if (loading() && !firstLoadDone()) {
+    <!-- SKELETON: load pertama -->
+    <section class="kpi-cards">
+      @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+        <div class="skeleton skel-card"></div>
+      }
+    </section>
+    <div class="skeleton skel-panel"></div>
+    <div class="skeleton skel-panel"></div>
+  }
+
+  @if (loading() && firstLoadDone()) {
+    <div class="loading-box">
+      <span class="spinner"></span>
+      <span>Menyegarkan data...</span>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="error-banner">⚠ {{ error() }} — pastikan backend berjalan di 127.0.0.1:5121</div>
+  }
+
+  @if (dashboard(); as data) {
+    <section class="kpi-cards">
+      <article>
+        <span>Average / Station</span>
+        <strong class="tabular">{{ data.summary.averagePerStation | number:'1.0-2' }}s</strong>
+        <svg viewBox="0 0 100 30" class="sparkline" preserveAspectRatio="none" aria-hidden="true">
+          <polyline [attr.points]="sparklinePoints(0)"/>
+        </svg>
+      </article>
+      <article>
+        <span>Total Test</span>
+        <strong class="tabular">{{ data.summary.totalTest }}</strong>
+        <svg viewBox="0 0 100 30" class="sparkline" preserveAspectRatio="none" aria-hidden="true">
+          <polyline [attr.points]="sparklinePoints(1)"/>
+        </svg>
+      </article>
+      <article>
+        <span>Unit Dites (Unik)</span>
+        <strong class="tabular">{{ data.summary.totalUniqueUnits }}</strong>
+        <svg viewBox="0 0 100 30" class="sparkline" preserveAspectRatio="none" aria-hidden="true">
+          <polyline [attr.points]="sparklinePoints(5)"/>
+        </svg>
+      </article>
+      <article>
+        <span>Unit Terdaftar</span>
+        <strong class="tabular">{{ data.summary.totalRegisteredUnits }}</strong>
+        <div class="progress">
+          <div class="progress-fill fill-green" [style.width.%]="data.summary.totalRegisteredUnits ? (data.summary.totalUniqueUnits / data.summary.totalRegisteredUnits * 100) : 0"></div>
+        </div>
+        <span class="card-sub">{{ data.summary.untestedUnits }} unit menunggu</span>
+      </article>
+      <article>
+        <span>Waiting Time (Avg)</span>
+        <strong class="tabular">{{ data.summary.overallWaitingAvgSeconds | number:'1.0-2' }}s</strong>
+        <svg viewBox="0 0 100 30" class="sparkline" preserveAspectRatio="none" aria-hidden="true">
+          <polyline [attr.points]="sparklinePoints(2)"/>
+        </svg>
+      </article>
+      <article>
+        <span>Utilization</span>
+        <strong class="tabular">{{ data.summary.overallUtilizationPercent | number:'1.0-2' }}%</strong>
+        <div class="progress">
+          <div class="progress-fill" [style.width.%]="data.summary.overallUtilizationPercent"></div>
+        </div>
+      </article>
+      <article>
+        <span>VA %</span>
+        <strong class="tabular">{{ data.summary.overallVaPercent | number:'1.0-2' }}%</strong>
+        <div class="progress">
+          <div class="progress-fill fill-cyan" [style.width.%]="data.summary.overallVaPercent"></div>
+        </div>
+      </article>
+      <article [class.warning]="data.taktComparison[0]?.status === 'warning'" [class.overload]="data.taktComparison[0]?.status === 'overload'">
+        <span>Takt Status</span>
+        <strong class="takt-status">{{ data.taktComparison[0]?.status || 'normal' | uppercase }}</strong>
+      </article>
+    </section>
+
+    <section class="charts-grid">
+      <div class="panel">
+        <h3>Average Per Station (s)</h3>
+        <canvas #barChart></canvas>
+      </div>
+      <div class="panel">
+        <h3>Total Test Trend</h3>
+        <canvas #lineChart></canvas>
+      </div>
+      <div class="panel">
+        <h3>VA vs NVA</h3>
+        <canvas #pieChart></canvas>
+      </div>
+      <div class="panel">
+        <h3>Utilization & Waiting Time</h3>
+        <canvas #trendChart></canvas>
+      </div>
+    </section>
+
+    <section class="panel table-panel">
+      <h3>
+        Ringkasan Akhir — Semua Metrik Per Station
+        <span class="table-meta">Klik baris station untuk drill-down filter</span>
+      </h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Station</th>
+              <th>Cell</th>
+              <th>Avg Cycle (s)</th>
+              <th>Total Test</th>
+              <th>Avg Waiting (s)</th>
+              <th>Utilization %</th>
+              <th>VA (s)</th>
+              <th>NVA (s)</th>
+              <th>VA %</th>
+              <th>Takt Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of data.stationSummary; track row.stationId) {
+              <tr class="clickable" (click)="selectStation(row.stationId)" title="Klik untuk filter station ini">
+                <td>{{ row.stationName }}</td>
+                <td>{{ row.cellName }}</td>
+                <td class="tabular">{{ row.avgCycleTimeSeconds | number:'1.0-2' }}</td>
+                <td class="tabular">{{ row.totalTest }}</td>
+                <td>
+                  <div class="data-cell">
+                    <div class="data-bar">
+                      <div class="data-bar-fill bar-wait" [style.width.%]="waitBar(row.avgWaitingTimeSeconds)"></div>
+                    </div>
+                    <span class="tabular">{{ row.avgWaitingTimeSeconds | number:'1.0-0' }}s</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="data-cell">
+                    <div class="data-bar">
+                      <div class="data-bar-fill bar-util" [style.width.%]="row.utilizationPercent"></div>
+                    </div>
+                    <span class="tabular">{{ row.utilizationPercent | number:'1.0-2' }}%</span>
+                  </div>
+                </td>
+                <td class="tabular">{{ row.vaTimeSeconds | number:'1.0-0' }}</td>
+                <td class="tabular">{{ row.nvaTimeSeconds | number:'1.0-0' }}</td>
+                <td>
+                  <div class="data-cell">
+                    <div class="data-bar">
+                      <div class="data-bar-fill bar-va" [style.width.%]="row.vaPercent"></div>
+                    </div>
+                    <span class="tabular">{{ row.vaPercent | number:'1.0-2' }}%</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="status-badge"
+                    [class.st-normal]="row.taktStatus === 'normal'"
+                    [class.st-warning]="row.taktStatus === 'warning'"
+                    [class.st-overload]="row.taktStatus === 'overload'">{{ row.taktStatus }}</span>
+                </td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="2"><strong>TOTAL / OVERALL</strong></td>
+              <td><strong class="tabular">{{ data.summary.averagePerStation | number:'1.0-2' }}</strong></td>
+              <td><strong class="tabular">{{ data.summary.totalTest }}</strong></td>
+              <td><strong class="tabular">{{ data.summary.overallWaitingAvgSeconds | number:'1.0-2' }}</strong></td>
+              <td><strong class="tabular">{{ data.summary.overallUtilizationPercent | number:'1.0-2' }}</strong></td>
+              <td colspan="2">—</td>
+              <td><strong class="tabular">{{ data.summary.overallVaPercent | number:'1.0-2' }}</strong></td>
+              <td>—</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel table-panel">
+      <h3>Unit Flow — Kelulusan Antar Station</h3>
+      <div class="unitflow-row">
+        <table class="unitflow-table">
+          <thead>
+            <tr>
+              <th>Cell</th>
+              <th>Terdaftar</th>
+              <th>Dites</th>
+              <th>Menunggu</th>
+              <th>Lolos 5/5</th>
+              <th>Completion Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (flow of data.unitFlow; track flow.cellName) {
+              <tr>
+                <td>{{ flow.cellName }}</td>
+                <td class="tabular">{{ flow.registeredUnits }}</td>
+                <td class="tabular">{{ flow.totalUniqueUnits }}</td>
+                <td class="tabular">{{ flow.registeredUnits - flow.totalUniqueUnits }}</td>
+                <td class="tabular">{{ flow.completedAllStations }}</td>
+                <td>
+                  <div class="data-cell">
+                    <div class="data-bar">
+                      <div class="data-bar-fill bar-done" [style.width.%]="flow.completionRatePercent"></div>
+                    </div>
+                    <span class="tabular">{{ flow.completionRatePercent | number:'1.0-1' }}%</span>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <div class="unitflow-chart">
+          <canvas #flowChart></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel table-panel">
+      <h3>
+        Detail Per Unit (Serial Number)
+        <span class="table-meta">{{ data.unitFlowDetail.length }} unit</span>
+      </h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Serial Number</th>
+              <th>Cell</th>
+              <th>Jml Test</th>
+              <th>Station Dilewati</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (unit of data.unitFlowDetail; track unit.serialNumber) {
+              <tr [class.unit-incomplete]="unit.testCount < 5">
+                <td>{{ unit.serialNumber }}</td>
+                <td>{{ unit.cellName }}</td>
+                <td class="tabular">{{ unit.testCount }}/5</td>
+                <td>{{ unit.stationsPassed }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel table-panel">
+      <h3>
+        Detail Data Per Station
+        <span class="table-meta">{{ history().length }} dari {{ historyTotalCount() }} baris</span>
+      </h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Station</th>
+              <th>Cell</th>
+              <th>Meter</th>
+              <th>Serial</th>
+              <th>Arrival</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Duration (s)</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of history(); track row.id) {
+              <tr>
+                <td>{{ row.stationName }}</td>
+                <td>{{ row.cellName }}</td>
+                <td>{{ row.meterTypeName }}</td>
+                <td>{{ row.serialNumber }}</td>
+                <td class="tabular">{{ row.arrivalTime | date:'mediumTime' }}</td>
+                <td class="tabular">{{ row.startTime | date:'mediumTime' }}</td>
+                <td class="tabular">{{ row.endTime | date:'mediumTime' }}</td>
+                <td class="tabular">{{ row.durationSeconds | number:'1.0-2' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <button type="button" (click)="goToPage(historyPage() - 1)" [disabled]="historyPage() <= 1">« Prev</button>
+        <span>Page {{ historyPage() }} / {{ historyTotalPages() }}</span>
+        <button type="button" (click)="goToPage(historyPage() + 1)" [disabled]="historyPage() >= historyTotalPages()">Next »</button>
+      </div>
+    </section>
+  }
+</div>

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <title>Line Balancing Dashboard</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script>
+    // Anti-flash: terapkan theme tersimpan SEBELUM Angular bootstrap
+    try {
+      var t = localStorage.getItem('srs-liba-theme');
+      if (t === 'light' || t === 'dark') {
+        document.documentElement.setAttribute('data-theme', t);
+      }
+    } catch (e) { /* localStorage tidak tersedia */ }
+  </script>
+</head>
+<body>
+  <app-root></app-root>
+</body>
+</html>

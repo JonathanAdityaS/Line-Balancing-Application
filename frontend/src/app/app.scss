@@ -1,0 +1,634 @@
+// ============================================================
+// app.scss — Style dashboard (memakai design tokens global dari
+// styles.scss: var(--panel), var(--border), dst).
+// Dark default + light via [data-theme='light'].
+// Breakpoint: 1024px (chart 1 kolom), 768px (mobile), 480px (kecil).
+// ============================================================
+
+:host {
+  display: block;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100vh;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.page {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+// ============================================================
+// TOPBAR — sticky + blur
+// ============================================================
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px -1px var(--shadow);
+  transition: background 0.3s ease;
+}
+
+.title-area h1 {
+  margin: 0 0 6px 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.title-area p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--danger);
+  color: #fff;
+  transition: background 0.3s;
+
+  &.connected {
+    background: var(--success);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--success) 50%, transparent);
+  }
+}
+
+.updated-ago {
+  color: var(--text-faint);
+  margin-left: 6px;
+}
+
+// ============================================================
+// ACTIONS & TOMBOL
+// ============================================================
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px -4px var(--shadow);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-export { background: #475569; color: #fff; }
+
+.btn-theme {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  font-size: 16px;
+  padding: 9px 13px;
+  line-height: 1;
+}
+
+.btn-reset {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  padding: 10px 14px;
+  font-size: 13px;
+
+  &:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); }
+}
+
+// ============================================================
+// AUTO-REFRESH CONTROL
+// ============================================================
+.auto-refresh {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  transition: border-color 0.2s, color 0.2s;
+  cursor: pointer;
+
+  input[type='checkbox'] {
+    min-width: 0;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  select {
+    min-width: 0;
+    padding: 4px 6px;
+
+    &:disabled { opacity: 0.5; }
+  }
+
+  &.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+// ============================================================
+// FILTERS
+// ============================================================
+.filters {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 24px;
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  align-items: center;
+  animation: fadeInUp 0.35s ease both;
+  transition: background 0.3s ease;
+}
+
+input, select {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 8px;
+  outline: none;
+  min-width: 140px;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+}
+
+// ============================================================
+// LOADING: SKELETON (load pertama) + SPINNER (refresh)
+// ============================================================
+.loading-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--accent);
+  font-weight: 600;
+  animation: fadeInUp 0.3s ease both;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.skeleton {
+  border-radius: 12px;
+  background: linear-gradient(100deg, var(--panel) 40%, var(--panel-2) 50%, var(--panel) 60%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s infinite linear;
+  border: 1px solid var(--border);
+}
+
+@keyframes shimmer {
+  to { background-position: -200% 0; }
+}
+
+.skel-card { height: 96px; }
+.skel-panel { height: 280px; margin-bottom: 24px; }
+
+.error-banner {
+  padding: 14px 20px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  border-radius: 12px;
+  color: var(--danger);
+  font-weight: 600;
+  animation: fadeInUp 0.3s ease both;
+}
+
+// ============================================================
+// KPI CARDS — aksen warna, hover lift, sparkline, progress
+// ============================================================
+.kpi-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.kpi-cards article {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--text-faint);
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 4px 6px -1px var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  animation: fadeInUp 0.4s ease both;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 22px -8px var(--shadow);
+  }
+
+  &:nth-child(1) { border-left-color: #3b82f6; }
+  &:nth-child(2) { border-left-color: #22c55e; }
+  &:nth-child(3) { border-left-color: #14b8a6; }
+  &:nth-child(4) { border-left-color: #8b5cf6; }
+  &:nth-child(5) { border-left-color: #f59e0b; }
+  &:nth-child(6) { border-left-color: #a855f7; }
+  &:nth-child(7) { border-left-color: #06b6d4; }
+  &:nth-child(8) { border-left-color: #ef4444; }
+}
+
+.kpi-cards span {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.kpi-cards strong {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+article.warning strong { color: var(--warning); }
+article.overload strong { color: var(--danger); }
+
+// Sparkline mini di dalam kartu
+.sparkline {
+  width: 100%;
+  height: 26px;
+  margin-top: 8px;
+  display: block;
+
+  polyline {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    opacity: 0.85;
+  }
+}
+
+// Progress bar (kartu Utilization / VA)
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-deep);
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #a855f7));
+  transition: width 0.5s ease;
+
+  &.fill-cyan {
+    background: linear-gradient(90deg, #06b6d4, #6366f1);
+  }
+
+  // Hijau: progress unit dites vs terdaftar
+  &.fill-green {
+    background: linear-gradient(90deg, #22c55e, #16a34a);
+  }
+}
+
+// Sub-label kecil di dalam kartu (mis. "20 unit menunggu")
+.card-sub {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+// ============================================================
+// PANELS & CHARTS
+// ============================================================
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  animation: fadeInUp 0.4s ease both;
+  transition: background 0.3s ease;
+}
+
+.panel h3 {
+  margin: 0 0 16px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.table-panel { animation-delay: 0.05s; }
+
+// ============================================================
+// TABEL
+// ============================================================
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 11px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: var(--panel-2);
+  position: sticky;
+  top: 0;
+}
+
+td { font-size: 14px; }
+
+tbody tr {
+  transition: background 0.15s ease;
+
+  &:hover { background: var(--accent-soft); }
+}
+
+// Baris yang bisa diklik (drill-down)
+tr.clickable {
+  cursor: pointer;
+
+  &:hover td:first-child { color: var(--accent); }
+}
+
+.table-meta {
+  float: right;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+// ============================================================
+// DATA BAR — bar mini di dalam sel tabel
+// ============================================================
+.data-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 110px;
+
+  span { font-size: 13px; color: var(--text-muted); }
+}
+
+.data-bar {
+  flex: 1;
+  height: 6px;
+  min-width: 50px;
+  border-radius: 999px;
+  background: var(--bg-deep);
+  overflow: hidden;
+}
+
+.data-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s ease;
+
+  &.bar-util { background: linear-gradient(90deg, #a855f7, #6366f1); }
+  &.bar-va { background: linear-gradient(90deg, #06b6d4, #3b82f6); }
+  &.bar-wait { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+  &.bar-done { background: linear-gradient(90deg, #22c55e, #16a34a); }
+}
+
+// ============================================================
+// STATUS BADGE — pulse untuk overload
+// ============================================================
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.st-normal {
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+}
+
+.st-warning {
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--warning);
+}
+
+.st-overload {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+  animation: pulseRed 1.6s infinite;
+}
+
+@keyframes pulseRed {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 35%, transparent); }
+  50% { box-shadow: 0 0 0 6px transparent; }
+}
+
+// ============================================================
+// FOOTER TOTAL + PAGER
+// ============================================================
+tfoot .total-row td {
+  border-top: 2px solid var(--border);
+  background: var(--bg-deep);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 16px;
+
+  button {
+    background: var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+  }
+
+  span {
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+}
+
+// ============================================================
+// UNIT FLOW LAYOUT
+// ============================================================
+.unitflow-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.unitflow-table {
+  flex: 1;
+  min-width: 280px;
+}
+
+.unitflow-chart {
+  flex: 1;
+  min-width: 280px;
+  max-width: 460px;
+}
+
+.unit-incomplete td { color: var(--warning); }
+
+// ============================================================
+// ANIMASI GLOBAL
+// ============================================================
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ============================================================
+// RESPONSIVE BREAKPOINTS
+// ============================================================
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .page { padding: 12px; }
+
+  .topbar {
+    position: static;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions { justify-content: flex-start; }
+
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px 16px;
+  }
+
+  input, select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .btn-reset { width: 100%; }
+
+  .kpi-cards {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  .kpi-cards strong { font-size: 20px; }
+
+  .unitflow-row { flex-direction: column; }
+  .unitflow-chart { max-width: none; width: 100%; }
+
+  th, td { padding: 9px 10px; }
+  td { font-size: 13px; }
+
+  .title-area h1 { font-size: 18px; }
+}
+
+@media (max-width: 480px) {
+  .kpi-cards { grid-template-columns: 1fr 1fr; }
+  .kpi-cards strong { font-size: 17px; }
+  .kpi-cards span { font-size: 11px; }
+  .actions { gap: 8px; }
+  button { padding: 9px 12px; font-size: 13px; }
+}
+

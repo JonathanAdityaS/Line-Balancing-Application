@@ -1,0 +1,109 @@
+<mxfile host="65bd71144e">
+    <diagram id="class-diagram" name="Class Diagram">
+        <mxGraphModel dx="1328" dy="404" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1640" pageHeight="1440" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="Class Diagram - Line Balancing Application (Backend .NET + SQLite | dummy: 360 log, 80 unit, 4 cell x 5 station)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=14;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="420" y="20" width="800" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="kpiController" value="KpiController [api/kpi]&#xa;----------------&#xa;+ GetDashboard(filter)&#xa;+ GetHistory(filter, page, pageSize)&#xa;[validasi: page &gt;= 1, pageSize 1..100]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="70" width="340" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="masterController" value="MasterController [api/master]&#xa;----------------&#xa;+ GetCells()&#xa;+ GetStations(cellId?)&#xa;+ GetMeterTypes()&#xa;+ GetShifts() [hardcoded dummy]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+                    <mxGeometry x="460" y="70" width="320" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="exportController" value="ExportController [api/export]&#xa;----------------&#xa;+ ExportExcel(filter)&#xa;+ ExportPdf(filter)&#xa;[filter diteruskan ke service agar&#xa;tercetak di laporan - AC-08]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+                    <mxGeometry x="820" y="70" width="340" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="kpiService" value="KpiService&#xa;----------------&#xa;+ GetDashboardAsync(filter)&#xa;+ GetHistoricalAsync(filter, page, pageSize)&#xa;----------------&#xa;[cache IMemoryCache 30 detik per filter&#xa;single-pass: 1 query - semua metrik]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="270" width="360" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="masterDataService" value="MasterDataService&#xa;----------------&#xa;+ GetCellsAsync()&#xa;+ GetStationsAsync(cellId?)&#xa;+ GetMeterTypesAsync()&#xa;[cache IMemoryCache 5 menit]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="480" y="270" width="300" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="exportService" value="ExportService&#xa;----------------&#xa;+ ExportExcel(dashboard, filter)&#xa;[4 sheet: Ringkasan, Ringkasan Station,&#xa;Unit Flow, Unit Flow Detail]&#xa;+ ExportPdf(dashboard, filter)&#xa;[5 section QuestPDF + info filter]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="820" y="270" width="360" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="metricCalculator" value="MetricCalculator [static]&#xa;----------------&#xa;+ ComputeSummary (waiting fisik)&#xa;+ ComputeStationAverages&#xa;+ ComputeWaitingTimes (Start - Arrival)&#xa;+ ComputeUtilization (span-based)&#xa;+ ComputeVaNva&#xa;+ ComputeTaktComparison (target 48s)&#xa;+ ComputeCellSummary&#xa;+ ComputeUnitFlow / Detail&#xa;+ ComputeStationSummary (all-in-one)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="1220" y="70" width="360" height="230" as="geometry"/>
+                </mxCell>
+                <mxCell id="kpiOptions" value="KpiOptions [appsettings.json]&#xa;----------------&#xa;+ TargetTaktSeconds = 48&#xa;[binding via IOptions, tanpa hardcode]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="1220" y="330" width="360" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="kpiFilter" value="KpiFilter [record]&#xa;----------------&#xa;+ CellId: long?&#xa;+ StationId: long?&#xa;+ MeterTypeId: long?&#xa;[filter ID numeric, bukan nama string]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+                    <mxGeometry x="480" y="470" width="300" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="pagedResult" value="PagedResult&lt;T&gt; [record]&#xa;----------------&#xa;+ Items, Page, PageSize&#xa;+ TotalCount, TotalPages&#xa;[dipakai endpoint history]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+                    <mxGeometry x="820" y="470" width="320" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="productionRepository" value="ProductionRepository : IProductionRepository&#xa;----------------&#xa;+ GetCellsAsync() / GetStationsAsync() / GetMeterTypesAsync()&#xa;+ GetLogsAsync(filter) [JOIN 4 tabel, projection minimal]&#xa;+ GetLogsPagedAsync(filter, page, pageSize) [Count + Skip/Take]&#xa;----------------&#xa;[filter ID numeric, bandingkan PK langsung]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="640" width="460" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="kpiDtos" value="KpiDtos.cs [record DTO]&#xa;----------------&#xa;StationAverageDto | WaitingTimeDto (+NegativeGapCount)&#xa;UtilizationDto | VaNvaDto | TaktComparisonDto&#xa;TaktLogDetailDto (+ArrivalTime) | MasterLookupDto&#xa;StationLookupDto | UnitFlowDto | UnitFlowDetailDto&#xa;StationSummaryDto (all-in-one 12 kolom)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+                    <mxGeometry x="580" y="640" width="440" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="appDbContext" value="AppDbContext [EF Core SQLite]&#xa;----------------&#xa;DbSet: Cells, Stations, MeterTypes, TaktLogTimes&#xa;----------------&#xa;Index: StationId, MeterTypeId, StartTime,&#xa;EndTime, (StationId, StartTime), CellName,&#xa;StationName, Name&#xa;FK: Station.CellId - Cell.Id&#xa;     TaktLog.StationId - Station.Id&#xa;     TaktLog.MeterTypeId - MeterType.Id" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="860" width="460" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="csvSeeder" value="CsvSeeder [static]&#xa;----------------&#xa;+ SeedAsync(db, csvFolder)&#xa;[baca 4 CSV dari /Data/DummyCsv&#xa;validasi: 7 kolom, datetime parse,&#xa;FK orphan, EndTime &gt;= ArrivalTime&#xa;skip + log row invalid&#xa;seed hanya jika DB kosong]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+                    <mxGeometry x="610" y="860" width="440" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="cellClass" value="Cell [4 rows]&#xa;----------------&#xa;+ Id: long [PK]&#xa;+ CellName: string&#xa;+ Stations: ICollection&lt;Station&gt;&#xa;[5 station per cell]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1120" width="260" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="stationClass" value="Station [20 rows]&#xa;----------------&#xa;+ Id: long [PK] (1-20)&#xa;+ CellId: long [FK]&gt;Cell.Id&#xa;+ StationName: string&#xa;+ Cell: Cell&#xa;+ TaktLogTimes: ICollection&lt;TaktLogTime&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+                    <mxGeometry x="380" y="1120" width="300" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="meterTypeClass" value="MeterType [3 rows]&#xa;----------------&#xa;+ Id: long [PK]&#xa;+ Name: string&#xa;+ TaktLogTimes: ICollection&lt;TaktLogTime&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+                    <mxGeometry x="390" y="1350" width="260" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="taktLogClass" value="TaktLogTime [360 rows]&#xa;----------------&#xa;+ Id: long [PK]&#xa;+ StationId: long [FK]&gt;Station.Id&#xa;+ MeterTypeId: long [FK]&gt;MeterType.Id&#xa;+ SerialNumber: string&#xa;+ ArrivalTime: DateTime [baru]&#xa;+ StartTime: DateTime&#xa;+ EndTime: DateTime&#xa;+ Station: Station&#xa;+ MeterType: MeterType&#xa;+ DurationSeconds: double [computed]&#xa;[1 unit = hingga 5 log (5 station/cell)]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+                    <mxGeometry x="860" y="1140" width="380" height="250" as="geometry"/>
+                </mxCell>
+                <mxCell id="frontendNote" value="Frontend Angular 21 [port 4200]&#xa;----------------&#xa;Dashboard: KPI cards, 4 chart + unit flow chart,&#xa;Ringkasan Akhir (drill-down klik station), history paged&#xa;Auto-refresh 15/30/60s | Export Excel/PDF | Filter dropdown&#xa;[API base: http://127.0.0.1:5121, CORS enabled]" style="shape=note;size=16;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;spacingLeft=8;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="1220" y="470" width="360" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge1" value="uses" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#666666;fontSize=11;" edge="1" parent="1" source="kpiController" target="kpiService">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge2" value="uses" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#666666;fontSize=11;" edge="1" parent="1" source="masterController" target="masterDataService">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge3" value="uses" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#666666;fontSize=11;" edge="1" parent="1" source="exportController" target="exportService">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge4" value="dashboard" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#666666;fontSize=11;dashed=1;" edge="1" parent="1" source="exportController" target="kpiService">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge5" value="compute metrics" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#666666;fontSize=11;" edge="1" parent="1" source="kpiService" target="metricCalculator">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge6" value="queries" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#666666;fontSize=11;" edge="1" parent="1" source="kpiService" target="productionRepository">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge7" value="target takt" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#666666;fontSize=11;dashed=1;" edge="1" parent="1" source="kpiOptions" target="kpiService">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge8" value="queries master" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#666666;fontSize=11;" edge="1" parent="1" source="masterDataService" target="productionRepository">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge9" value="EF Core" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#666666;fontSize=11;" edge="1" parent="1" source="productionRepository" target="appDbContext">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge10" value="seed" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#666666;fontSize=11;" edge="1" parent="1" source="csvSeeder" target="appDbContext">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge11" value="1 : 5 exact" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#b85450;fontSize=11;" edge="1" parent="1" source="cellClass" target="stationClass">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge12" value="1 : N" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#b85450;fontSize=11;" edge="1" parent="1" source="stationClass" target="taktLogClass">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge13" value="1 : N" style="endArrow=block;endFill=1;html=1;rounded=0;strokeColor=#b85450;fontSize=11;" edge="1" parent="1" source="meterTypeClass" target="taktLogClass">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
