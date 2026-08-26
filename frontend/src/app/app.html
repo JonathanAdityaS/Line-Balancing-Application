@@ -132,9 +132,10 @@
           <div class="progress-fill fill-cyan" [style.width.%]="data.summary.overallVaPercent"></div>
         </div>
       </article>
-      <article [class.warning]="data.taktComparison[0]?.status === 'warning'" [class.overload]="data.taktComparison[0]?.status === 'overload'">
+      <article [class.warning]="taktAggregate().status === 'warning'" [class.overload]="taktAggregate().status === 'overload'">
         <span>Takt Status</span>
-        <strong class="takt-status">{{ data.taktComparison[0]?.status || 'normal' | uppercase }}</strong>
+        <strong class="takt-status">{{ taktAggregate().status | uppercase }}</strong>
+        <span class="card-sub tabular">{{ taktAggregate().overload }} overload · {{ taktAggregate().warning }} warning · {{ taktAggregate().normal }} normal</span>
       </article>
     </section>
 

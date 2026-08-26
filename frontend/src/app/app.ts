@@ -153,6 +153,20 @@ export class App implements AfterViewInit, OnDestroy {
     return Math.min(100, Math.round(seconds / 3));
   }
 
+  /**
+   * Agregat takt status seluruh line (worst-case wins):
+   * ada overload → OVERLOAD; else ada warning → WARNING; else NORMAL.
+   * Disertai distribusi jumlah station per kategori untuk sub-label kartu.
+   */
+  protected taktAggregate(): { status: string; overload: number; warning: number; normal: number } {
+    const takt = this.dashboard()?.taktComparison ?? [];
+    const overload = takt.filter(x => x.status === 'overload').length;
+    const warning = takt.filter(x => x.status === 'warning').length;
+    const normal = takt.filter(x => x.status === 'normal').length;
+    const status = overload > 0 ? 'overload' : warning > 0 ? 'warning' : 'normal';
+    return { status, overload, warning, normal };
+  }
+
   /** Teks "x lalu" untuk timestamp update terakhir. */
   get updatedAgoText(): string {
     const lu = this.lastUpdated();
