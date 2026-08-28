@@ -47,6 +47,7 @@ builder.Services.AddScoped<IProductionRepository, ProductionRepository>(); // Qu
 builder.Services.AddScoped<IMasterDataService, MasterDataService>();       // Master lookup + cache 5 menit
 builder.Services.AddScoped<IKpiService, KpiService>();                     // Orkestrasi KPI + cache 30 detik
 builder.Services.AddScoped<IExportService, ExportService>();               // Export Excel/PDF
+builder.Services.AddScoped<ISyncService, SyncService>();                   // Tarik MSSQL existing → SQLite (read-only)
 // Binding konfigurasi "Kpi:TargetTaktSeconds" dari appsettings.json ke class KpiOptions
 builder.Services.Configure<KpiOptions>(builder.Configuration.GetSection(KpiOptions.SectionName));
 
@@ -55,14 +56,27 @@ QuestPDF.Settings.License = LicenseType.Community;
 
 var app = builder.Build();
 
-// --- CSV Seeder: isi database dari file dummy saat aplikasi pertama kali jalan ---
-// Hanya mengisi bila database masih kosong (lihat CsvSeeder.SeedAsync)
+// --- Sinkronisasi Database saat startup (sesuai SRS: MSSQL existing → SQLite cache) ---
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
-    var csvFolder = Path.Combine(env.ContentRootPath, "Data", "DummyCsv");
-    await CsvSeeder.SeedAsync(db, csvFolder);
+    var sync = scope.ServiceProvider.GetRequiredService<ISyncService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    // Pastikan schema & tabel ada di SQLite
+    await db.Database.EnsureCreatedAsync();
+
+    // 1) Coba tarik dari MSSQL existing (read-only). Berhasil → data segar dari perusahaan.
+    var synced = await sync.TrySyncFromMssqlAsync();
+
+    // 2) Gagal → fallback seed dari CSV dummy (tetap jalan di clone/demo).
+    if (!synced)
+    {
+        var csvFolder = Path.Combine(env.ContentRootPath, "Data", "DummyCsv");
+        await CsvSeeder.SeedAsync(db, csvFolder);
+        logger.LogInformation("Data bersumber dari CSV dummy (fallback).");
+    }
 }
 
 // --- HTTP request pipeline (urutan penting) ---
