@@ -340,15 +340,27 @@ export class App implements AfterViewInit, OnDestroy {
   // ============================================================
 
   exportExcel(): void {
-    if (typeof window !== 'undefined') {
-      window.open(this.api.exportExcel(this.toFilter()), '_blank');
-    }
+    this.api.exportExcel(this.toFilter()).subscribe({
+      next: (blob) => this.downloadBlob(blob, 'line-balancing-dashboard.xlsx'),
+      error: () => this.error.set('Gagal export Excel')
+    });
   }
 
   exportPdf(): void {
-    if (typeof window !== 'undefined') {
-      window.open(this.api.exportPdf(this.toFilter()), '_blank');
-    }
+    this.api.exportPdf(this.toFilter()).subscribe({
+      next: (blob) => this.downloadBlob(blob, 'line-balancing-dashboard.pdf'),
+      error: () => this.error.set('Gagal export PDF')
+    });
+  }
+
+  private downloadBlob(blob: Blob, filename: string): void {
+    if (typeof window === 'undefined') return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // ============================================================

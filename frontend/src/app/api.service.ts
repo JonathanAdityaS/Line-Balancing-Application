@@ -35,12 +35,18 @@ export class ApiService {
     return this.http.get<PagedResult<TaktLogDetailDto>>(`${this.baseUrl}/api/kpi/history`, { params });
   }
 
-  exportExcel(filter: KpiFilter): string {
-    return `${this.baseUrl}/api/export/excel?${this.toQuery(filter)}`;
+  exportExcel(filter: KpiFilter): import('rxjs').Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/api/export/excel`, {
+      params: this.toParams(filter),
+      responseType: 'blob' as const
+    });
   }
 
-  exportPdf(filter: KpiFilter): string {
-    return `${this.baseUrl}/api/export/pdf?${this.toQuery(filter)}`;
+  exportPdf(filter: KpiFilter): import('rxjs').Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/api/export/pdf`, {
+      params: this.toParams(filter),
+      responseType: 'blob' as const
+    });
   }
 
   private toParams(filter: KpiFilter): HttpParams {
