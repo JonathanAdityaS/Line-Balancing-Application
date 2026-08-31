@@ -22,6 +22,10 @@ export class ApiService {
     return this.http.get<MasterLookupDto[]>(`${this.baseUrl}/api/master/meter-types`);
   }
 
+  login(username: string, password: string): Observable<{ token: string, username: string, role: string }> {
+    return this.http.post<{ token: string, username: string, role: string }>(`${this.baseUrl}/api/auth/login`, { username, password });
+  }
+
   getDashboard(filter: KpiFilter): Observable<KpiDashboardResult> {
     return this.http.get<KpiDashboardResult>(`${this.baseUrl}/api/kpi/dashboard`, { params: this.toParams(filter) });
   }

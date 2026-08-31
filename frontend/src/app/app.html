@@ -13,6 +13,10 @@
       </p>
     </div>
     <div class="actions">
+      @if (isLoggedIn()) {
+        <span class="user-chip">{{ username() }} ({{ userRole() }})</span>
+        <button type="button" class="btn-export" (click)="logout()">Logout</button>
+      }
       <button type="button" class="btn-theme" (click)="toggleTheme()"
         [title]="theme() === 'dark' ? 'Ganti ke light mode' : 'Ganti ke dark mode'">
         @if (theme() === 'dark') { ☀ } @else { ☾ }
@@ -32,6 +36,28 @@
     </div>
   </header>
 
+  @if (!isLoggedIn()) {
+    <section class="login-wrapper">
+      <div class="login-box">
+        <h2>Login</h2>
+        <form [formGroup]="loginForm" (ngSubmit)="login()">
+          <div>
+            <label>Username</label>
+            <input type="text" formControlName="username" placeholder="admin / user" />
+          </div>
+          <div>
+            <label>Password</label>
+            <input type="password" formControlName="password" placeholder="password" />
+          </div>
+          @if (loginError()) {
+            <p class="error-banner">{{ loginError() }}</p>
+          }
+          <button type="submit" class="btn-primary" [disabled]="loginLoading()">{{ loginLoading() ? 'Loading...' : 'Login' }}</button>
+        </form>
+        <p class="card-sub" style="text-align:center; margin-top:16px;">Demo: admin/admin atau user/user</p>
+      </div>
+    </section>
+  } @else {
   <section class="filters" [formGroup]="form">
     <select formControlName="cell">
       <option value="">All cells</option>
@@ -348,4 +374,5 @@
       </div>
     </section>
   }
+  } <!-- tutup @else login -->
 </div>

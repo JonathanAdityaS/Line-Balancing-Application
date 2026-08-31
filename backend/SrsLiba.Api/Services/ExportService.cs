@@ -377,17 +377,4 @@ public sealed class ExportService : IExportService
 
         return doc.GeneratePdf();
     }
-
-    /// <summary>
-    /// Helper kecil: tulis satu baris header tabel Excel sekaligus + bold.
-    /// (Tidak dipakai lagi setelah refactor inline — disimpan untuk pemakaian masa depan.)
-    /// </summary>
-    private static void WriteHeader(IXLWorksheet ws, int row, params string[] headers)
-    {
-        for (int i = 0; i < headers.Length; i++)
-        {
-            ws.Cell(row, i + 1).Value = headers[i];
-        }
-        ws.Row(row).Style.Font.SetBold();
-    }
 }

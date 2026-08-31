@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, ElementRef, inject, OnDestroy, signal, ViewChild } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from './api.service';
 import { KpiDashboardResult, KpiFilter, MasterLookupDto, StationLookupDto, TaktLogDetailDto } from './api.models';
 import { Chart, registerables } from 'chart.js';
@@ -33,6 +33,17 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly loading = signal(false);
   protected readonly error = signal('');
   protected readonly dbStatus = signal<'connected' | 'disconnected'>('disconnected');
+
+  // ---------- Auth state ----------
+  protected readonly isLoggedIn = signal(Boolean(localStorage.getItem('srs-liba-token')));
+  protected readonly username = signal(localStorage.getItem('srs-liba-user') ?? '');
+  protected readonly userRole = signal(localStorage.getItem('srs-liba-role') ?? '');
+  protected readonly loginLoading = signal(false);
+  protected readonly loginError = signal('');
+  protected readonly loginForm = this.fb.nonNullable.group({
+    username: ['', Validators.required],
+    password: ['', Validators.required]
+  });
 
   // ---------- Theme (dark default) ----------
   protected readonly theme = signal<'dark' | 'light'>('dark');
@@ -83,12 +94,16 @@ export class App implements AfterViewInit, OnDestroy {
     // Ticker "diperbarui x lalu" — update tiap 5 detik
     this.nowTimer = setInterval(() => this.now.set(Date.now()), 5000);
 
-    this.loadMasters();
-    this.load();
+    // Reaksi pilih Cell → refresh dropdown Station
     this.form.controls.cell.valueChanges.subscribe(cellId => {
       this.form.controls.stationId.setValue('');
       this.api.getStations(cellId ?? undefined).subscribe(data => this.stations.set(data));
     });
+
+    if (this.isLoggedIn()) {
+      this.loadMasters();
+      this.load();
+    }
   }
 
   ngAfterViewInit(): void {}
@@ -249,6 +264,50 @@ export class App implements AfterViewInit, OnDestroy {
   get hasActiveFilter(): boolean {
     const raw = this.form.getRawValue();
     return Boolean(raw.cell || raw.stationId || raw.meterType);
+  }
+
+  // ============================================================
+  // AUTH
+  // ============================================================
+
+  login(): void {
+    if (this.loginForm.invalid) return;
+    this.loginLoading.set(true);
+    this.loginError.set('');
+    const { username, password } = this.loginForm.getRawValue();
+    this.api.login(username, password).subscribe({
+      next: (res) => {
+        localStorage.setItem('srs-liba-token', res.token);
+        localStorage.setItem('srs-liba-role', res.role);
+        localStorage.setItem('srs-liba-user', res.username);
+        this.username.set(res.username);
+        this.userRole.set(res.role);
+        this.isLoggedIn.set(true);
+        this.loginLoading.set(false);
+        this.loadMasters();
+        this.load();
+      },
+      error: (err) => {
+        this.loginError.set(err.status === 401 ? 'Username atau password salah' : 'Gagal login ke server');
+        this.loginLoading.set(false);
+      }
+    });
+  }
+
+  logout(): void {
+    localStorage.removeItem('srs-liba-token');
+    localStorage.removeItem('srs-liba-role');
+    localStorage.removeItem('srs-liba-user');
+    this.isLoggedIn.set(false);
+    this.username.set('');
+    this.userRole.set('');
+    this.dashboard.set(null);
+    this.history.set([]);
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = undefined;
+      this.autoRefresh.set(false);
+    }
   }
 
   // ============================================================

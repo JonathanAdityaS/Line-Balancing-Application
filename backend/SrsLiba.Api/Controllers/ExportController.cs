@@ -6,6 +6,7 @@
 // lalu bentuk file-nya via ExportService dan kirim sebagai download.
 // ============================================================
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SrsLiba.Api.Contracts;
 using SrsLiba.Api.Services;
@@ -13,6 +14,7 @@ using SrsLiba.Api.Services;
 namespace SrsLiba.Api.Controllers;
 
 /// <summary>Controller export laporan Excel & PDF.</summary>
+[Authorize]
 [ApiController]
 [Route("api/export")]
 public sealed class ExportController : ControllerBase

@@ -6,12 +6,14 @@
 //   GET  /api/admin/db-status  → status koneksi MSSQL existing
 // ============================================================
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SrsLiba.Api.Services;
 
 namespace SrsLiba.Api.Controllers;
 
 /// <summary>Controller admin: sinkronisasi data & status koneksi database.</summary>
+[Authorize(Roles = "admin")]
 [ApiController]
 [Route("api/admin")]
 public sealed class AdminController : ControllerBase

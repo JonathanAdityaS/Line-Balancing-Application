@@ -13,6 +13,10 @@ using SrsLiba.Api.Repositories;
 using SrsLiba.Api.Services;
 using QuestPDF.Infrastructure;
 
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+
 // Membuat builder aplikasi web — membaca appsettings.json + environment variables
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,8 +52,28 @@ builder.Services.AddScoped<IMasterDataService, MasterDataService>();       // Ma
 builder.Services.AddScoped<IKpiService, KpiService>();                     // Orkestrasi KPI + cache 30 detik
 builder.Services.AddScoped<IExportService, ExportService>();               // Export Excel/PDF
 builder.Services.AddScoped<ISyncService, SyncService>();                   // Tarik MSSQL existing → SQLite (read-only)
-// Binding konfigurasi "Kpi:TargetTaktSeconds" dari appsettings.json ke class KpiOptions
+// Binding konfigurasi
 builder.Services.Configure<KpiOptions>(builder.Configuration.GetSection(KpiOptions.SectionName));
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.AddSingleton<TokenService>();
+
+// --- JWT Authentication ---
+var jwtSecret = builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("Jwt:Secret missing");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(opt =>
+    {
+        opt.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+        };
+    });
+builder.Services.AddAuthorization();
 
 // QuestPDF mode Community (gratis) — wajib diset sebelum generate PDF
 QuestPDF.Settings.License = LicenseType.Community;
@@ -89,6 +113,11 @@ if (app.Environment.IsDevelopment())
 app.UseExceptionHandler(); // Error global → response ProblemDetails rapi (tanpa stack trace)
 app.UseCors("Frontend");   // Terapkan kebijakan CORS di atas
 app.UseHttpsRedirection(); // Redirect HTTP → HTTPS
+
+// Auth middleware harus ditaruh sebelum MapControllers
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();      // Routing semua controller: /api/kpi, /api/master, /api/export
 app.MapHealthChecks("/health"); // Endpoint cek kesehatan: /health
 

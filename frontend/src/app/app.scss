@@ -288,6 +288,40 @@ input, select {
   &:nth-child(8) { border-left-color: #ef4444; }
 }
 
+.user-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.login-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 48px 16px;
+  animation: fadeInUp 0.4s ease both;
+
+  .login-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    width: 360px;
+    max-width: 100%;
+    box-shadow: 0 12px 24px -8px var(--shadow);
+  }
+
+  h2 { margin: 0 0 20px; text-align: center; font-size: 22px; }
+
+  form { display: flex; flex-direction: column; gap: 16px; }
+
+  label { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; display: block; }
+
+  input { width: 100%; }
+}
+
 .kpi-cards span {
   display: block;
   font-size: 12px;
