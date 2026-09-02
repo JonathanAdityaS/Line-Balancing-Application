@@ -13,61 +13,6 @@ namespace SrsLiba.Api.Services;
 public static class MetricCalculator
 {
     /// <summary>
-    /// Ringkasan garis (kartu KPI atas) — nilai agregat seluruh station:
-    /// - AveragePerStation = rata-rata dari rata-rata cycle time semua station;
-    /// - TotalTest = jumlah baris log;
-    /// - TotalUniqueUnits = jumlah unit unik SUDAH dites (distinct CellName+SN);
-    /// - TotalRegisteredUnits = unit terdaftar di work order (UnitMaster, dalam scope filter);
-    /// - UntestedUnits = terdaftar tapi belum punya log sama sekali;
-    /// - OverallWaitingAvgSeconds = rata-rata waktu tunggu FISIK semua unit
-    ///   (StartTime - ArrivalTime per log, bukan jarak antar unit);
-    /// - OverallUtilizationPercent = rata-rata utilization semua station;
-    /// - OverallVaPercent = total VA / (total VA + total NVA) x 100.
-    /// </summary>
-    public static KpiSummary ComputeSummary(
-        IReadOnlyList<TaktLogRowDto> rows,
-        IReadOnlyList<StationAverageDto> averages,
-        IReadOnlyList<UtilizationDto> utilization,
-        IReadOnlyList<VaNvaDto> vaNva,
-        IReadOnlyList<UnitMasterRowDto> registered)
-    {
-        var avg = averages.Count == 0 ? 0m : averages.Average(x => x.AverageCycleTimeSeconds);
-
-        // Unit unik SUDAH dites: distinct kombinasi Cell+SN (scope per cell)
-        var testedKeys = rows
-            .Select(x => $"{x.CellName}|{x.SerialNumber}")
-            .ToHashSet();
-        var totalTested = testedKeys.Count;
-
-        // Registered: unit terdaftar dalam scope filter; untested = tidak ada di tested set
-        var totalRegistered = registered.Count;
-        var untested = registered.Count(r => !testedKeys.Contains($"{r.CellName}|{r.SerialNumber}"));
-
-        // Waiting fisik: setiap log punya nilai tunggu sendiri (Start - Arrival)
-        var allWaits = rows
-            .Select(x => (x.StartTime - x.ArrivalTime).TotalSeconds)
-            .ToList();
-        var overallWaiting = allWaits.Count > 0 ? allWaits.Average() : 0;
-
-        var overallUtil = utilization.Count > 0 ? utilization.Average(x => x.UtilizationPercent) : 0;
-
-        // VA global: total semua VA dibanding total waktu (VA+NVA) semua station
-        var totalVa = vaNva.Sum(x => x.VaTimeSeconds);
-        var totalNva = vaNva.Sum(x => x.NvaTimeSeconds);
-        var overallVaPct = (totalVa + totalNva) > 0 ? Math.Round(totalVa / (totalVa + totalNva) * 100, 2) : 0;
-
-        return new KpiSummary(
-            avg,
-            rows.Count,
-            totalTested,
-            totalRegistered,
-            untested,
-            Math.Round(overallWaiting, 2),
-            Math.Round(overallUtil, 2),
-            overallVaPct);
-    }
-
-    /// <summary>
     /// FR-01 Average Per Station: rata-rata durasi (EndTime-StartTime) per station.
     /// Sort numerik agar urutan station benar (1,2,...,10 — bukan 1,10,2).
     /// </summary>
@@ -81,7 +26,7 @@ public static class MetricCalculator
                 g.Key.CellName,
                 (decimal)g.Average(x => (x.EndTime - x.StartTime).TotalSeconds),
                 g.Count()))
-            .OrderBy(x => long.Parse(x.StationId))
+            .OrderBy(x => x.StationId)
             .ToList();
     }
 
@@ -95,19 +40,19 @@ public static class MetricCalculator
 
         foreach (var group in rows.GroupBy(x => new { x.StationId, x.StationName }))
         {
-            // Waiting time per log (bukan jarak antar unit) — tidak berubah saat difilter per meter
-            var waits = group
-                .Select(x => (x.StartTime - x.ArrivalTime).TotalSeconds)
-                .ToList();
+            var logs = group.OrderBy(x => x.StartTime).ToList();
+            var waitingTimes = new List<double>();
 
-            var avgWait = waits.Count > 0 ? waits.Average() : 0;
-            var totalWait = waits.Sum();
+            for (int i = 1; i < logs.Count; i++)
+            {
+                var wait = (logs[i].StartTime - logs[i - 1].EndTime).TotalSeconds;
+                if (wait > 0) waitingTimes.Add(wait);
+            }
 
-            result.Add(new WaitingTimeDto(
-                group.Key.StationId.ToString(),
-                group.Key.StationName,
-                avgWait,
-                totalWait));
+            var avgWait = waitingTimes.Count > 0 ? waitingTimes.Average() : 0;
+            var totalWait = waitingTimes.Sum();
+
+            result.Add(new WaitingTimeDto(group.Key.StationId.ToString(), group.Key.StationName, avgWait, totalWait));
         }
 
         return result.OrderBy(x => long.Parse(x.StationId)).ToList();
@@ -127,15 +72,9 @@ public static class MetricCalculator
             var logs = group.ToList();
             var active = logs.Sum(x => (x.EndTime - x.StartTime).TotalSeconds);
             var span = (logs.Max(x => x.EndTime) - logs.Min(x => x.StartTime)).TotalSeconds;
-            // Guard: span 0 (station cuma 1 log instan) → utilization 0 agar tidak divide-by-zero
             var pct = span > 0 ? Math.Round(active / span * 100, 2) : 0;
 
-            result.Add(new UtilizationDto(
-                group.Key.StationId.ToString(),
-                group.Key.StationName,
-                active,
-                span,
-                pct));
+            result.Add(new UtilizationDto(group.Key.StationId.ToString(), group.Key.StationName, active, span, Math.Round(pct, 2)));
         }
 
         return result.OrderBy(x => long.Parse(x.StationId)).ToList();
@@ -143,7 +82,7 @@ public static class MetricCalculator
 
     /// <summary>
     /// FR-05 VA vs NVA per station:
-    /// VA = durasi proses (End - Start); NVA = waktu tunggu fisik (Start - Arrival);
+    /// VA = total durasi proses (End - Start); NVA = waktu tunggu antar unit.
     /// VaPercent = proporsi VA dari total waktu (VA+NVA).
     /// </summary>
     public static IReadOnlyList<VaNvaDto> ComputeVaNva(IReadOnlyList<TaktLogRowDto> rows)
@@ -152,10 +91,14 @@ public static class MetricCalculator
 
         foreach (var group in rows.GroupBy(x => new { x.StationId, x.StationName }))
         {
-            // VA: waktu benar-benar memproses unit
-            var va = group.Sum(x => (x.EndTime - x.StartTime).TotalSeconds);
-            // NVA: waktu tunggu fisik unit sebelum diproses
-            var nva = group.Sum(x => (x.StartTime - x.ArrivalTime).TotalSeconds);
+            var logs = group.OrderBy(x => x.StartTime).ToList();
+            var va = logs.Sum(x => (x.EndTime - x.StartTime).TotalSeconds);
+
+            double nva = 0;
+            for (int i = 1; i < logs.Count; i++)
+            {
+                nva += (logs[i].StartTime - logs[i - 1].EndTime).TotalSeconds;
+            }
 
             var total = va + nva;
             var vaPct = total > 0 ? Math.Round(va / total * 100, 2) : 0;
@@ -167,43 +110,158 @@ public static class MetricCalculator
     }
 
     /// <summary>
-    /// FR-09 Takt Comparison: bandingkan rata-rata cycle time vs target takt time (config).
+    /// FR-09 Takt Comparison: bandingkan rata-rata cycle time vs target takt time (FR-09).
     /// Status: overload (> 100% target), warning (> 90% target), normal (sisanya).
+    /// Target takt time bisa per station/cell via taktTargets config, fallback ke global target.
     /// </summary>
-    public static IReadOnlyList<TaktComparisonDto> ComputeTaktComparison(IReadOnlyList<TaktLogRowDto> rows, double targetTaktSeconds)
+    public static IReadOnlyList<TaktComparisonDto> ComputeTaktComparison(
+        IReadOnlyList<TaktLogRowDto> rows,
+        double globalTargetTaktSeconds,
+        IReadOnlyDictionary<string, double>? perStationTargets = null,
+        IReadOnlyDictionary<string, double>? perCellTargets = null)
     {
         return rows
             .GroupBy(x => new { x.StationId, x.StationName, x.CellName })
             .Select(g =>
             {
                 var avg = (decimal)g.Average(x => (x.EndTime - x.StartTime).TotalSeconds);
-                var status = avg > (decimal)targetTaktSeconds ? "overload"
-                    : avg > (decimal)(targetTaktSeconds * 0.9) ? "warning"
+
+                // Determine target takt for this station
+                // Priority: station-specific > cell-specific > global default
+                var stationKey = $"{g.Key.CellName}|{g.Key.StationName}";
+                var targetTakt = globalTargetTaktSeconds;
+
+                if (perStationTargets?.TryGetValue($"{g.Key.CellName}|{g.Key.StationName}", out var stationTarget) == true)
+                {
+                    targetTakt = stationTarget;
+                }
+                else if (perCellTargets?.TryGetValue(g.Key.CellName, out var cellTarget) == true)
+                {
+                    targetTakt = cellTarget;
+                }
+
+                var status = avg > (decimal)targetTakt ? "overload"
+                    : avg > (decimal)(targetTakt * 0.9) ? "warning"
                     : "normal";
-                return new TaktComparisonDto(g.Key.StationId.ToString(), g.Key.StationName, g.Key.CellName, avg, status);
+                return new TaktComparisonDto(g.Key.StationId.ToString(), g.Key.StationName, g.Key.CellName, avg, status, targetTakt);
             })
             .OrderBy(x => long.Parse(x.StationId))
             .ToList();
     }
 
     /// <summary>
-    /// Ringkasan KPI per Cell:
-    /// TotalTest = jumlah baris; AvgDuration = rata-rata durasi proses;
-    /// AvgWaitingTime = rata-rata waktu tunggu FISIK unit di cell (Start - Arrival);
-    /// Utilization = RATA-RATA utilization station-station di cell itu;
-    /// TotalVa/TotalNva = akumulasi durasi proses & waktu tunggu seluruh station dalam cell.
+    /// Tabel ringkasan akhir all-in-one: gabungkan semua metrik per station
+    /// dari 5 dataset (average, waiting, utilization, VA/NVA, takt) menjadi
+    /// satu baris per station — lookup via dictionary by StationId.
+    /// Station yang tidak punya data log tetap dimasukkan dengan HasData=false
+    /// agar frontend bisa tampilkan N/A.
     /// </summary>
+    public static IReadOnlyList<StationSummaryDto> ComputeStationSummary(
+        IReadOnlyList<StationAverageDto> averages,
+        IReadOnlyList<WaitingTimeDto> waiting,
+        IReadOnlyList<UtilizationDto> utilization,
+        IReadOnlyList<VaNvaDto> vaNva,
+        IReadOnlyList<TaktComparisonDto> takt)
+    {
+        // Index tiap metrik by StationId agar lookup O(1)
+        var waitById = waiting.ToDictionary(x => x.StationId);
+        var utilById = utilization.ToDictionary(x => x.StationId);
+        var vaById = vaNva.ToDictionary(x => x.StationId);
+        var taktById = takt.ToDictionary(x => x.StationId);
+
+        // Kumpulkan semua stationId yang pernah muncul di mana saja (avg, waiting, util, va, takt)
+        var allStationIds = new HashSet<string>();
+        foreach (var avg in averages) allStationIds.Add(avg.StationId);
+        foreach (var w in waiting) allStationIds.Add(w.StationId);
+        foreach (var u in utilization) allStationIds.Add(u.StationId);
+        foreach (var v in vaNva) allStationIds.Add(v.StationId);
+        foreach (var t in takt) allStationIds.Add(t.StationId);
+
+        var result = new List<StationSummaryDto>();
+
+        foreach (var id in allStationIds.OrderBy(x => long.Parse(x)))
+        {
+            // Cek apakah station punya data log (ada di averages = punya log)
+            var hasData = averages.Any(a => a.StationId == id);
+
+            // Ambil data dari tiap metrik (bisa null jika tidak ada)
+            waitById.TryGetValue(id, out var w);
+            utilById.TryGetValue(id, out var u);
+            vaById.TryGetValue(id, out var v);
+            taktById.TryGetValue(id, out var t);
+
+            // Dapatkan nama station dan cell dari metrik mana saja yang tersedia
+            var stationName = averages.FirstOrDefault(a => a.StationId == id)?.StationName ?? 
+                              takt.FirstOrDefault(tc => t != null && tc.StationId == id)?.StationName ?? "";
+            var cellName = averages.FirstOrDefault(a => a.StationId == id)?.CellName ?? 
+                           takt.FirstOrDefault(tc => t != null && tc.StationId == id)?.CellName ?? "";
+
+            result.Add(new StationSummaryDto(
+                id,
+                stationName,
+                cellName,
+                averages.FirstOrDefault(a => a.StationId == id)?.AverageCycleTimeSeconds ?? 0,
+                averages.FirstOrDefault(a => a.StationId == id)?.TotalTest ?? 0,
+                w?.AverageWaitingTimeSeconds ?? 0,
+                u?.UtilizationPercent ?? 0,
+                v?.VaTimeSeconds ?? 0,
+                v?.NvaTimeSeconds ?? 0,
+                v?.VaPercent ?? 0,
+                t?.Status ?? "normal",
+                hasData));
+        }
+
+        return result.OrderBy(x => long.Parse(x.StationId)).ToList();
+    }
+
+    public static KpiSummary ComputeSummary(
+        IReadOnlyList<TaktLogRowDto> rows,
+        IReadOnlyList<StationAverageDto> averages,
+        IReadOnlyList<UtilizationDto> utilization,
+        IReadOnlyList<VaNvaDto> vaNva,
+        IReadOnlyList<UnitMasterRowDto> registered)
+    {
+        var avg = averages.Count == 0 ? 0m : averages.Average(x => x.AverageCycleTimeSeconds);
+
+        var testedKeys = rows
+            .Select(x => $"{x.CellName}|{x.SerialNumber}")
+            .ToHashSet();
+        var totalTested = testedKeys.Count;
+
+        var totalRegistered = registered.Count;
+        var untested = registered.Count(r => !testedKeys.Contains($"{r.CellName}|{r.SerialNumber}"));
+
+        var allWaits = rows
+            .Select(x => (x.StartTime - x.ArrivalTime).TotalSeconds)
+            .ToList();
+        var overallWaiting = allWaits.Count > 0 ? allWaits.Average() : 0;
+
+        var overallUtil = utilization.Count > 0 ? utilization.Average(x => x.UtilizationPercent) : 0;
+
+        var totalVa = vaNva.Sum(x => x.VaTimeSeconds);
+        var totalNva = vaNva.Sum(x => x.NvaTimeSeconds);
+        var overallVaPct = (totalVa + totalNva) > 0 ? Math.Round(totalVa / (totalVa + totalNva) * 100, 2) : 0;
+
+        return new KpiSummary(
+            avg,
+            rows.Count,
+            totalTested,
+            totalRegistered,
+            untested,
+            Math.Round(overallWaiting, 2),
+            Math.Round(overallUtil, 2),
+            overallVaPct);
+    }
+
     public static IReadOnlyList<CellSummaryDto> ComputeCellSummary(
         IReadOnlyList<TaktLogRowDto> rows,
         IReadOnlyList<WaitingTimeDto> waitingPerStation,
         IReadOnlyList<UtilizationDto> utilizationPerStation)
     {
-        // Peta stationId → nama cell (untuk mengelompokkan utilization per cell)
         var cellOfStation = rows
             .GroupBy(x => x.StationId)
             .ToDictionary(g => g.Key, g => g.First().CellName);
 
-        // Utilization cell = rata-rata utilization station-station di cell tersebut
         var utilByCell = utilizationPerStation
             .GroupBy(x => cellOfStation.GetValueOrDefault(long.Parse(x.StationId), string.Empty))
             .ToDictionary(g => g.Key, g => g.Average(x => x.UtilizationPercent));
@@ -213,7 +271,6 @@ public static class MetricCalculator
         foreach (var group in rows.GroupBy(x => x.CellName))
         {
             var durations = group.Select(x => (x.EndTime - x.StartTime).TotalSeconds).ToList();
-            // Waiting fisik semua unit di cell ini (per log)
             var waits = group.Select(x => (x.StartTime - x.ArrivalTime).TotalSeconds).ToList();
 
             result.Add(new CellSummaryDto(
@@ -229,23 +286,12 @@ public static class MetricCalculator
         return result.OrderBy(x => x.CellName).ToList();
     }
 
-    /// <summary>
-    /// Unit Flow per cell — kelulusan unit antar station:
-    /// - Unit dikelompokkan per (CellName + SerialNumber);
-    /// - TestCount = jumlah station DISTINCT yang dilewati unit;
-    /// - Lolos 5/5 bila TestCount >= jumlah station pada cell tersebut (5);
-    /// - Distribusi UnitsWith1Test..5Test = histogram berapa unit melewati 1..5 station;
-    /// - RegisteredUnits = unit TERDAFTAR di cell (dari UnitMaster/work order),
-    ///   bisa lebih besar dari TotalUniqueUnits bila ada unit yang belum dites.
-    /// </summary>
     public static IReadOnlyList<UnitFlowDto> ComputeUnitFlow(IReadOnlyList<TaktLogRowDto> rows, IReadOnlyList<UnitMasterRowDto> registered)
     {
-        // Jumlah station per cell diambil dari data (harusnya 5 per cell)
         var stationsPerCell = rows
             .GroupBy(x => x.CellName)
             .ToDictionary(g => g.Key, g => g.Select(x => x.StationId).Distinct().Count());
 
-        // Jumlah unit TERDAFTAR per cell (dari work order UnitMaster)
         var registeredPerCell = registered
             .GroupBy(x => x.CellName)
             .ToDictionary(g => g.Key, g => g.Count());
@@ -257,13 +303,11 @@ public static class MetricCalculator
             var expected = stationsPerCell.GetValueOrDefault(cellGroup.Key, 5);
             var units = cellGroup.GroupBy(x => x.SerialNumber).ToList();
 
-            // Histogram: index 0 = unit dengan 1 test, index 4 = 5 test
             var dist = new int[5];
             var completed = 0;
 
             foreach (var unit in units)
             {
-                // Distinct station agar log ganda di station sama tidak dihitung dobel
                 var testCount = Math.Min(unit.Select(x => x.StationId).Distinct().Count(), 5);
                 if (testCount >= 1) dist[testCount - 1]++;
                 if (testCount >= expected) completed++;
@@ -282,56 +326,6 @@ public static class MetricCalculator
         return result.OrderBy(x => x.CellName).ToList();
     }
 
-    /// <summary>
-    /// Tabel ringkasan akhir all-in-one: gabungkan semua metrik per station
-    /// dari 5 dataset (average, waiting, utilization, VA/NVA, takt) menjadi
-    /// satu baris per station — lookup via dictionary by StationId.
-    /// </summary>
-    public static IReadOnlyList<StationSummaryDto> ComputeStationSummary(
-        IReadOnlyList<StationAverageDto> averages,
-        IReadOnlyList<WaitingTimeDto> waiting,
-        IReadOnlyList<UtilizationDto> utilization,
-        IReadOnlyList<VaNvaDto> vaNva,
-        IReadOnlyList<TaktComparisonDto> takt)
-    {
-        // Index tiap metrik by StationId agar lookup O(1)
-        var waitById = waiting.ToDictionary(x => x.StationId);
-        var utilById = utilization.ToDictionary(x => x.StationId);
-        var vaById = vaNva.ToDictionary(x => x.StationId);
-        var taktById = takt.ToDictionary(x => x.StationId);
-
-        var result = new List<StationSummaryDto>();
-
-        foreach (var avg in averages)
-        {
-            var id = avg.StationId;
-            // Station yang tidak punya data metrik tertentu tetap masuk dengan nilai 0
-            waitById.TryGetValue(id, out var w);
-            utilById.TryGetValue(id, out var u);
-            vaById.TryGetValue(id, out var v);
-            taktById.TryGetValue(id, out var t);
-
-            result.Add(new StationSummaryDto(
-                id,
-                avg.StationName,
-                avg.CellName,
-                avg.AverageCycleTimeSeconds,
-                avg.TotalTest,
-                w?.AverageWaitingTimeSeconds ?? 0,
-                u?.UtilizationPercent ?? 0,
-                v?.VaTimeSeconds ?? 0,
-                v?.NvaTimeSeconds ?? 0,
-                v?.VaPercent ?? 0,
-                t?.Status ?? "normal"));
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Detail Unit Flow per SerialNumber: SN, cell, jumlah test,
-    /// dan daftar nama station yang dilewati (urut nomor station).
-    /// </summary>
     public static IReadOnlyList<UnitFlowDetailDto> ComputeUnitFlowDetail(IReadOnlyList<TaktLogRowDto> rows)
     {
         return rows

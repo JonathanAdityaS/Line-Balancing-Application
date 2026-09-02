@@ -36,8 +36,9 @@ public sealed record VaNvaDto(string StationId, string StationName, double VaTim
 /// <summary>
 /// Perbandingan cycle time aktual vs target takt time (FR-09).
 /// Status: "normal" (<= 90% target), "warning" (90-100%), "overload" (> target).
+/// TargetTaktSeconds: target takt time untuk station ini (bisa per cell/station).
 /// </summary>
-public sealed record TaktComparisonDto(string StationId, string StationName, string CellName, decimal AverageCycleTimeSeconds, string Status);
+public sealed record TaktComparisonDto(string StationId, string StationName, string CellName, decimal AverageCycleTimeSeconds, string Status, double TargetTaktSeconds);
 
 /// <summary>
 /// Detail satu baris log untuk tabel history di frontend.
@@ -66,6 +67,7 @@ public sealed record UnitFlowDetailDto(string SerialNumber, string CellName, int
 /// Ringkasan akhir all-in-one per station — gabungan SEMUA metrik dalam satu baris
 /// (untuk tabel ringkasan di frontend, menggantikan keharusan membaca semua chart):
 /// AvgCycleTime + TotalTest + Waiting + Utilization + VA/NVA + TaktStatus.
+/// HasData = true jika station memiliki data log, false jika station tidak punya data (N/A).
 /// </summary>
 public sealed record StationSummaryDto(
     string StationId,
@@ -78,4 +80,5 @@ public sealed record StationSummaryDto(
     double VaTimeSeconds,
     double NvaTimeSeconds,
     double VaPercent,
-    string TaktStatus);
+    string TaktStatus,
+    bool HasData);

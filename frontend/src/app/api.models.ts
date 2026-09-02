@@ -105,6 +105,7 @@ export interface StationSummaryDto {
   nvaTimeSeconds: number;
   vaPercent: number;
   taktStatus: string;
+  hasData: boolean;
 }
 
 export interface KpiDashboardResult {

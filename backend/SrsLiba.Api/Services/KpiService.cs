@@ -3,6 +3,8 @@
 // Tugas:
 //   1. Dashboard: ambil logs → hitung semua metrik via MetricCalculator → cache 30 detik
 //   2. History: ambil logs terpaginasi → map ke DTO siap tampil
+//   3. Heatmap Takt: return data takt comparison per cell/station
+//   4. Target Takt Config: get/set konfigurasi target takt per cell/station
 // ============================================================
 
 using Microsoft.Extensions.Caching.Memory;
@@ -13,16 +15,7 @@ using SrsLiba.Api.Repositories;
 namespace SrsLiba.Api.Services;
 
 /// <summary>
-/// Ringkasan KPI utama untuk kartu dashboard (nilai AGREGAT semua station,
-/// bukan station pertama — agar tidak menyesatkan saat difilter):
-/// - AveragePerStation: rata-rata cycle time antar station
-/// - TotalTest: jumlah baris log (kejadian test)
-/// - TotalUniqueUnits: unit unik yang SUDAH dites minimal 1x (distinct SN)
-/// - TotalRegisteredUnits: unit TERDAFTAR di work order (termasuk belum dites)
-/// - UntestedUnits: terdaftar tapi belum punya log sama sekali
-/// - OverallWaitingAvgSeconds: rata-rata waktu tunggu fisik semua unit
-/// - OverallUtilizationPercent: rata-rata utilization semua station
-/// - OverallVaPercent: total VA / (total VA + total NVA) x 100
+/// Ringkasan KPI utama untuk dashboard Angular (kartu + chart).
 /// </summary>
 public sealed record KpiSummary(
     decimal AveragePerStation,
@@ -61,6 +54,9 @@ public interface IKpiService
 {
     Task<KpiDashboardResult> GetDashboardAsync(KpiFilter filter, CancellationToken ct = default);
     Task<PagedResult<TaktLogDetailDto>> GetHistoricalAsync(KpiFilter filter, int page, int pageSize, CancellationToken ct = default);
+    Task<IReadOnlyList<TaktComparisonDto>> GetTaktHeatmapAsync(KpiFilter filter, CancellationToken ct = default);
+    SrsLiba.Api.Services.TaktTargetConfig GetTaktTargetsAsync(CancellationToken ct = default);
+    Task UpdateTaktTargetsAsync(SrsLiba.Api.Services.TaktTargetConfig config, CancellationToken ct = default);
 }
 
 /// <summary>Implementasi KPI dengan caching hasil dashboard (hemat query berulang).</summary>
@@ -96,7 +92,27 @@ public sealed class KpiService : IKpiService
         }))!;
     }
 
-    /// <summary>Ambil history log terpaginasi, sudah dimap ke DTO siap tampil di tabel.</summary>
+    /// <summary>Ambil heatmap Takt per cell/station.</summary>
+    public async Task<IReadOnlyList<TaktComparisonDto>> GetTaktHeatmapAsync(KpiFilter filter, CancellationToken ct = default)
+    {
+        var rows = await _repository.GetLogsAsync(filter, ct);
+        return MetricCalculator.ComputeTaktComparison(rows, _options.TargetTaktSeconds, _options.TaktTargets?.PerStation, _options.TaktTargets?.PerCell);
+    }
+
+    /// <summary>Ambil konfigurasi target takt per cell/station.</summary>
+    public SrsLiba.Api.Services.TaktTargetConfig GetTaktTargetsAsync(CancellationToken ct = default)
+    {
+        return _options.TaktTargets;
+    }
+
+    /// <summary>Update konfigurasi target takt per cell/station.</summary>
+    public async Task UpdateTaktTargetsAsync(SrsLiba.Api.Services.TaktTargetConfig config, CancellationToken ct = default)
+    {
+        _options.TaktTargets = config;
+        // Cache key untuk dashboard akan invalidate otomatis saat GET dashboard berikutnya
+    }
+
+    /// <summary>Ambil history log terpaginasi, sudah dimap ke DTO siap tampil.</summary>
     public async Task<PagedResult<TaktLogDetailDto>> GetHistoricalAsync(KpiFilter filter, int page, int pageSize, CancellationToken ct = default)
     {
         var rows = await _repository.GetLogsPagedAsync(filter, page, pageSize, ct);
@@ -131,7 +147,7 @@ public sealed class KpiService : IKpiService
         var waiting = MetricCalculator.ComputeWaitingTimes(rows);
         var utilization = MetricCalculator.ComputeUtilization(rows);
         var vaNva = MetricCalculator.ComputeVaNva(rows);
-        var takt = MetricCalculator.ComputeTaktComparison(rows, _options.TargetTaktSeconds);
+        var takt = MetricCalculator.ComputeTaktComparison(rows, _options.TargetTaktSeconds, _options.TaktTargets?.PerStation, _options.TaktTargets?.PerCell);
         var cellSummary = MetricCalculator.ComputeCellSummary(rows, waiting, utilization);
         var unitFlow = MetricCalculator.ComputeUnitFlow(rows, registered);
         var unitFlowDetail = MetricCalculator.ComputeUnitFlowDetail(rows);

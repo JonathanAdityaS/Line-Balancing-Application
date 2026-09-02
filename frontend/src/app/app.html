@@ -208,16 +208,16 @@
           <tbody>
             @for (row of data.stationSummary; track row.stationId) {
               <tr class="clickable" (click)="selectStation(row.stationId)" title="Klik untuk filter station ini">
-                <td>{{ row.stationName }}</td>
-                <td>{{ row.cellName }}</td>
-                <td class="tabular">{{ row.avgCycleTimeSeconds | number:'1.0-2' }}</td>
-                <td class="tabular">{{ row.totalTest }}</td>
+                <td>{{ row.stationName || 'N/A' }}</td>
+                <td>{{ row.cellName || 'N/A' }}</td>
+                <td class="tabular">{{ row.hasData ? (row.avgCycleTimeSeconds | number:'1.0-2') : 'N/A' }}</td>
+                <td class="tabular">{{ row.hasData ? row.totalTest : 'N/A' }}</td>
                 <td>
                   <div class="data-cell">
                     <div class="data-bar">
                       <div class="data-bar-fill bar-wait" [style.width.%]="waitBar(row.avgWaitingTimeSeconds)"></div>
                     </div>
-                    <span class="tabular">{{ row.avgWaitingTimeSeconds | number:'1.0-0' }}s</span>
+                    <span class="tabular">{{ row.hasData ? (row.avgWaitingTimeSeconds | number:'1.0-0') : 'N/A' }}s</span>
                   </div>
                 </td>
                 <td>
@@ -225,24 +225,25 @@
                     <div class="data-bar">
                       <div class="data-bar-fill bar-util" [style.width.%]="row.utilizationPercent"></div>
                     </div>
-                    <span class="tabular">{{ row.utilizationPercent | number:'1.0-2' }}%</span>
+                    <span class="tabular">{{ row.hasData ? (row.utilizationPercent | number:'1.0-2') : 'N/A' }}%</span>
                   </div>
                 </td>
-                <td class="tabular">{{ row.vaTimeSeconds | number:'1.0-0' }}</td>
-                <td class="tabular">{{ row.nvaTimeSeconds | number:'1.0-0' }}</td>
+                <td class="tabular">{{ row.hasData ? (row.vaTimeSeconds | number:'1.0-0') : 'N/A' }}</td>
+                <td class="tabular">{{ row.hasData ? (row.nvaTimeSeconds | number:'1.0-0') : 'N/A' }}</td>
                 <td>
                   <div class="data-cell">
                     <div class="data-bar">
                       <div class="data-bar-fill bar-va" [style.width.%]="row.vaPercent"></div>
                     </div>
-                    <span class="tabular">{{ row.vaPercent | number:'1.0-2' }}%</span>
+                    <span class="tabular">{{ row.hasData ? (row.vaPercent | number:'1.0-2') : 'N/A' }}%</span>
                   </div>
                 </td>
                 <td>
                   <span class="status-badge"
                     [class.st-normal]="row.taktStatus === 'normal'"
                     [class.st-warning]="row.taktStatus === 'warning'"
-                    [class.st-overload]="row.taktStatus === 'overload'">{{ row.taktStatus }}</span>
+                    [class.st-overload]="row.taktStatus === 'overload'"
+                    [class.st-nodata]="!row.hasData">{{ row.hasData ? row.taktStatus : 'N/A' }}</span>
                 </td>
               </tr>
             }
