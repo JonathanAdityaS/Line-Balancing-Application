@@ -31,9 +31,11 @@ public sealed class ExportController : ControllerBase
     /// <summary>
     /// Export dashboard ke Excel multi-sheet (Ringkasan, Ringkasan Station,
     /// Unit Flow, Unit Flow Detail). Filter sama dengan endpoint dashboard
-    /// (?cellId=&stationId=&meterTypeId=). Mengembalikan file untuk diunduh.
+    /// (?cellId=&stationId=&meterTypeId=). Hanya dapat diakses oleh pengguna dengan role "admin".
+    /// Mengembalikan file untuk diunduh.
     /// </summary>
     [HttpGet("excel")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> ExportExcel([FromQuery] KpiFilter filter, CancellationToken ct)
     {
         // Hitung KPI dulu (tercache bila baru saja dimuat), lalu bentuk file
@@ -47,9 +49,11 @@ public sealed class ExportController : ControllerBase
     /// <summary>
     /// Export dashboard ke PDF multi-section (KPI, Ringkasan Station,
     /// Cell Summary, Unit Flow). Filter sama dengan endpoint dashboard.
+    /// Hanya dapat diakses oleh pengguna dengan role "admin".
     /// Mengembalikan file PDF untuk diunduh.
     /// </summary>
     [HttpGet("pdf")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> ExportPdf([FromQuery] KpiFilter filter, CancellationToken ct)
     {
         var dashboard = await _kpiService.GetDashboardAsync(filter, ct);

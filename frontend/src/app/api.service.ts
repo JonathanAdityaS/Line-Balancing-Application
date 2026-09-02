@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { KpiDashboardResult, KpiFilter, MasterLookupDto, PagedResult, StationLookupDto, TaktLogDetailDto } from './api.models';
+import { KpiDashboardResult, KpiFilter, MasterLookupDto, PagedResult, StationLookupDto, TaktLogDetailDto, TaktComparisonDto } from './api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -35,18 +35,30 @@ export class ApiService {
     return this.http.get<PagedResult<TaktLogDetailDto>>(`${this.baseUrl}/api/kpi/history`, { params });
   }
 
-  exportExcel(filter: KpiFilter): import('rxjs').Observable<Blob> {
+  exportExcel(filter: KpiFilter): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/api/export/excel`, {
       params: this.toParams(filter),
       responseType: 'blob' as const
     });
   }
 
-  exportPdf(filter: KpiFilter): import('rxjs').Observable<Blob> {
+  exportPdf(filter: KpiFilter): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/api/export/pdf`, {
       params: this.toParams(filter),
       responseType: 'blob' as const
     });
+  }
+
+  getTaktHeatmap(filter: KpiFilter): Observable<TaktComparisonDto[]> {
+    return this.http.get<TaktComparisonDto[]>(`${this.baseUrl}/api/kpi/heatmap/takt`, { params: this.toParams(filter) });
+  }
+
+  getTaktTargets(): Observable<{ PerCell: Map<string, number>; PerStation: Map<string, number> }> {
+    return this.http.get<{ PerCell: Map<string, number>; PerStation: Map<string, number> }>(`${this.baseUrl}/api/kpi/takt-targets`);
+  }
+
+  updateTaktTargets(config: { PerCell: Map<string, number>; PerStation: Map<string, number> }): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/api/kpi/takt-targets`, config);
   }
 
   private toParams(filter: KpiFilter): HttpParams {

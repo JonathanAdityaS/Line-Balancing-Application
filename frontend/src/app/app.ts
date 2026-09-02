@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, ElementRef, inject, OnDestroy, signal, ViewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from './api.service';
-import { KpiDashboardResult, KpiFilter, MasterLookupDto, StationLookupDto, TaktLogDetailDto } from './api.models';
+import { KpiDashboardResult, KpiFilter, MasterLookupDto, StationLookupDto, TaktLogDetailDto, TaktComparisonDto } from './api.models';
 import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
@@ -32,9 +32,14 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly meterTypes = signal<MasterLookupDto[]>([]);
   protected readonly loading = signal(false);
   protected readonly error = signal('');
-  protected readonly dbStatus = signal<'connected' | 'disconnected'>('disconnected');
+protected readonly dbStatus = signal<'connected' | 'disconnected'>('disconnected');
 
-  // ---------- Auth state ----------
+// ---------- NEW: Takt heatmap & target config ----------
+protected readonly taktHeatmap = signal<TaktComparisonDto[]>([]);
+protected readonly taktTargets = signal<{ PerCell: Map<string, number>; PerStation: Map<string, number> }>({ PerCell: new Map(), PerStation: new Map() });
+protected readonly loadingTakt = signal(false);
+
+// ---------- Auth state ----------
   protected readonly isLoggedIn = signal(Boolean(localStorage.getItem('srs-liba-token')));
   protected readonly username = signal(localStorage.getItem('srs-liba-user') ?? '');
   protected readonly userRole = signal(localStorage.getItem('srs-liba-role') ?? '');
@@ -229,6 +234,10 @@ export class App implements AfterViewInit, OnDestroy {
     });
 
     this.loadHistory(filter, 1);
+
+    // Fetch takt heatmap and targets after dashboard load
+    this.fetchTaktHeatmap(filter);
+    this.fetchTaktTargets();
   }
 
   loadHistory(filter: KpiFilter, page: number): void {
@@ -258,12 +267,34 @@ export class App implements AfterViewInit, OnDestroy {
   clearFilters(): void {
     this.form.patchValue({ stationId: '', cell: '', meterType: '' });
     this.load();
+    this.fetchTaktHeatmap();
+    this.fetchTaktTargets();
   }
 
   /** Cek apakah ada filter aktif (untuk tombol reset). */
   get hasActiveFilter(): boolean {
     const raw = this.form.getRawValue();
     return Boolean(raw.cell || raw.stationId || raw.meterType);
+  }
+
+  /** Fetch heatmap Takt per cell/station. */
+  fetchTaktHeatmap(filter?: KpiFilter): void {
+    this.loadingTakt.set(true);
+    this.api.getTaktHeatmap(filter ?? this.toFilter()).subscribe({
+      next: data => this.taktHeatmap.set(data),
+      error: () => this.error.set('Gagal memuat heatmap takt'),
+      complete: () => this.loadingTakt.set(false)
+    });
+  }
+
+  /** Ambil konfigurasi target takt per cell/station. */
+  fetchTaktTargets(): void {
+    this.loadingTakt.set(true);
+    this.api.getTaktTargets().subscribe({
+      next: data => this.taktTargets.set(data),
+      error: () => this.error.set('Gagal memuat target takt'),
+      complete: () => this.loadingTakt.set(false)
+    });
   }
 
   // ============================================================

@@ -31,8 +31,8 @@
         </select>
       </label>
       <button type="button" class="btn-primary" (click)="load()">Load Data</button>
-      <button type="button" class="btn-export" (click)="exportExcel()">Export Excel</button>
-      <button type="button" class="btn-export" (click)="exportPdf()">Export PDF</button>
+      <button type="button" class="btn-export" (click)="exportExcel()" *ngIf="userRole() === 'admin'">Export Excel</button>
+      <button type="button" class="btn-export" (click)="exportPdf()" *ngIf="userRole() === 'admin'">Export PDF</button>
     </div>
   </header>
 

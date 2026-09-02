@@ -142,3 +142,21 @@ export interface TaktLogDetailDto {
   durationSeconds: number;
 }
 
+/// <summary>
+/// Konfigurasi target takt per cell/station.
+/// Digunakan oleh endpoint GET/POST /api/kpi/takt-targets.
+/// </summary>
+export interface KpiOptions {
+  TargetTaktSeconds: number;
+  TaktTargets: TaktTargetConfig;
+}
+
+/// <summary>
+/// Mapping target takt per cell/station.
+/// Key: "CellName|StationName" atau "CellName" untuk default cell-wide.
+/// </summary>
+export interface TaktTargetConfig {
+  PerCell: Map<string, number>;
+  PerStation: Map<string, number>;
+}
+
