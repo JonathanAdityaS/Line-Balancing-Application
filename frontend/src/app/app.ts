@@ -61,6 +61,9 @@ protected readonly loadingTakt = signal(false);
     password: ['', Validators.required]
   });
 
+  // ---------- Panel login (dashboard publik, login opsional) ----------
+  protected readonly showLoginForm = signal(false);
+
   // ---------- Theme (dark default) ----------
   protected readonly theme = signal<'dark' | 'light'>('dark');
 
@@ -118,9 +121,20 @@ protected readonly loadingTakt = signal(false);
       this.api.getStations(cellId ?? undefined).subscribe(data => this.stations.set(data));
     });
 
+    // Dashboard bersifat publik: selalu muat data saat dibuka.
+    // Akun yang masih login (mis. operator) diverifikasi profilnya dulu.
     if (this.isLoggedIn()) {
       this.refreshProfile();
+    } else {
+      this.loadMasters();
+      this.load();
     }
+  }
+
+  /** Tampilkan/sembunyikan panel login (kanan atas). */
+  toggleLoginForm(): void {
+    this.showLoginForm.update(v => !v);
+    this.loginError.set('');
   }
 
   /** True bila operator yang belum mengonfirmasi identitas → dashboard digate. */
@@ -383,6 +397,7 @@ protected readonly loadingTakt = signal(false);
         this.applyProfile(res.isOperator, res.assignedCellId, res.assignedCellName, res.identityConfirmed);
         this.isLoggedIn.set(true);
         this.loginLoading.set(false);
+        this.showLoginForm.set(false);
         if (this.isOperator()) this.applyOperatorLock();
         if (this.needsIdentityConfirm) return; // operator wajib konfirmasi dulu
         this.loadMasters();
@@ -435,13 +450,15 @@ protected readonly loadingTakt = signal(false);
     this.confirmForm.reset();
     this.confirmError.set('');
     this.form.controls.cell.enable();
-    this.dashboard.set(null);
-    this.history.set([]);
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer);
       this.refreshTimer = undefined;
       this.autoRefresh.set(false);
     }
+    // Dashboard publik: tetap tampil dengan data tanpa filter akun
+    this.form.patchValue({ stationId: '', cell: '', meterType: '', dateFrom: '', dateTo: '' });
+    this.loadMasters();
+    this.load();
   }
 
   // ============================================================

@@ -16,6 +16,8 @@
       @if (isLoggedIn()) {
         <span class="user-chip">{{ username() }} ({{ userRole() }})@if (isOperator()) { · {{ assignedCellName() }} }</span>
         <button type="button" class="btn-export" (click)="logout()">Logout</button>
+      } @else {
+        <button type="button" class="btn-primary" (click)="toggleLoginForm()">Login</button>
       }
       <button type="button" class="btn-theme" (click)="toggleTheme()"
         [title]="theme() === 'dark' ? 'Ganti ke light mode' : 'Ganti ke dark mode'">
@@ -36,7 +38,7 @@
     </div>
   </header>
 
-  @if (!isLoggedIn()) {
+  @if (showLoginForm() && !isLoggedIn()) {
     <section class="login-wrapper">
       <div class="login-box">
         <h2>Login</h2>
@@ -55,9 +57,10 @@
           <button type="submit" class="btn-primary" [disabled]="loginLoading()">{{ loginLoading() ? 'Loading...' : 'Login' }}</button>
         </form>
         <p class="card-sub" style="text-align:center; margin-top:16px;">Demo: admin/admin, user/user, atau operator/operator</p>
+        <p class="card-sub" style="text-align:center;"><button type="button" class="btn-reset" (click)="toggleLoginForm()">Tutup</button></p>
       </div>
     </section>
-  } @else {
+  }
   @if (needsIdentityConfirm) {
     <section class="login-wrapper">
       <div class="login-box">
@@ -402,6 +405,5 @@
       </div>
     </section>
   }
-  } <!-- tutup @else konfirmasi identitas -->
-  } <!-- tutup @else login -->
+  } <!-- tutup @else konfirmasi -->
 </div>
