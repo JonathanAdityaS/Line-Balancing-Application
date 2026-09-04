@@ -25,21 +25,34 @@ public sealed class MasterController : ControllerBase
         _masterData = masterData;
     }
 
-    /// <summary>Daftar semua Cell (Cell-A s/d Cell-D).</summary>
+    /// <summary>
+    /// Daftar Cell. Operator hanya menerima cell yang ditugaskan kepadanya
+    /// (difilter di controller agar tidak meracuni cache global service).
+    /// </summary>
     [HttpGet("cells")]
     public async Task<ActionResult<IReadOnlyList<MasterLookupDto>>> GetCells(CancellationToken ct)
     {
+        if (OperatorScope.IsUnconfirmedOperator(User))
+            return Problem(statusCode: 403, title: "Identity not confirmed", detail: "Operator wajib mengonfirmasi identitas terlebih dahulu.");
         var result = await _masterData.GetCellsAsync(ct);
+        var assigned = OperatorScope.GetAssignedCell(User);
+        if (assigned.HasValue)
+            result = result.Where(x => x.Id == assigned.Value).ToList();
         return Ok(result);
     }
 
     /// <summary>
     /// Daftar Station — bila query ?cellId= diberikan, hanya station
     /// milik cell tersebut (dropdown bertingkat: pilih cell → station muncul).
+    /// Operator dipaksa ke cell-nya (parameter cellId diabaikan).
     /// </summary>
     [HttpGet("stations")]
     public async Task<ActionResult<IReadOnlyList<StationLookupDto>>> GetStations([FromQuery] long? cellId, CancellationToken ct)
     {
+        if (OperatorScope.IsUnconfirmedOperator(User))
+            return Problem(statusCode: 403, title: "Identity not confirmed", detail: "Operator wajib mengonfirmasi identitas terlebih dahulu.");
+        var assigned = OperatorScope.GetAssignedCell(User);
+        if (assigned.HasValue) cellId = assigned.Value;
         var result = await _masterData.GetStationsAsync(cellId, ct);
         return Ok(result);
     }

@@ -14,7 +14,7 @@
     </div>
     <div class="actions">
       @if (isLoggedIn()) {
-        <span class="user-chip">{{ username() }} ({{ userRole() }})</span>
+        <span class="user-chip">{{ username() }} ({{ userRole() }})@if (isOperator()) { · {{ assignedCellName() }} }</span>
         <button type="button" class="btn-export" (click)="logout()">Logout</button>
       }
       <button type="button" class="btn-theme" (click)="toggleTheme()"
@@ -54,7 +54,26 @@
           }
           <button type="submit" class="btn-primary" [disabled]="loginLoading()">{{ loginLoading() ? 'Loading...' : 'Login' }}</button>
         </form>
-        <p class="card-sub" style="text-align:center; margin-top:16px;">Demo: admin/admin atau user/user</p>
+        <p class="card-sub" style="text-align:center; margin-top:16px;">Demo: admin/admin, user/user, atau operator/operator</p>
+      </div>
+    </section>
+  } @else {
+  @if (needsIdentityConfirm) {
+    <section class="login-wrapper">
+      <div class="login-box">
+        <h2>Konfirmasi Identitas Operator</h2>
+        <p class="card-sub">Akun <strong>{{ username() }}</strong> terdaftar sebagai operator untuk <strong>{{ assignedCellName() }}</strong>.</p>
+        <p class="card-sub">Masukkan ulang password untuk mengonfirmasi identitas Anda sebelum mengakses dashboard.</p>
+        <form [formGroup]="confirmForm" (ngSubmit)="confirmIdentity()">
+          <div>
+            <label>Password</label>
+            <input type="password" formControlName="password" placeholder="password" />
+          </div>
+          @if (confirmError()) {
+            <p class="error-banner">{{ confirmError() }}</p>
+          }
+          <button type="submit" class="btn-primary" [disabled]="confirmLoading()">{{ confirmLoading() ? 'Memverifikasi...' : 'Saya mengonfirmasi' }}</button>
+        </form>
       </div>
     </section>
   } @else {
@@ -383,5 +402,6 @@
       </div>
     </section>
   }
+  } <!-- tutup @else konfirmasi identitas -->
   } <!-- tutup @else login -->
 </div>

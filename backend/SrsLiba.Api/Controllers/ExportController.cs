@@ -38,6 +38,7 @@ public sealed class ExportController : ControllerBase
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> ExportExcel([FromQuery] KpiFilter filter, CancellationToken ct)
     {
+        filter = OperatorScope.EnforceCell(filter, User);
         if (filter.DateFrom.HasValue && filter.DateTo.HasValue
             && filter.DateFrom.Value.Date > filter.DateTo.Value.Date)
         {
@@ -61,6 +62,7 @@ public sealed class ExportController : ControllerBase
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> ExportPdf([FromQuery] KpiFilter filter, CancellationToken ct)
     {
+        filter = OperatorScope.EnforceCell(filter, User);
         if (filter.DateFrom.HasValue && filter.DateTo.HasValue
             && filter.DateFrom.Value.Date > filter.DateTo.Value.Date)
         {

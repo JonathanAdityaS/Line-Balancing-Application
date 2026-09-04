@@ -107,3 +107,46 @@ public sealed class UnitMaster
     [ForeignKey("MeterTypeId")]
     public MeterType? MeterType { get; set; }
 }
+
+/// <summary>
+/// Entitas akun pengguna aplikasi — tabel database: "AppUser" (lokal SQLite).
+/// Role tetap "admin"/"user" (tidak menambah role baru): operator adalah user
+/// biasa yang diberi atribut <see cref="IsOperator"/> + <see cref="AssignedCellId"/>
+/// sehingga backend memaksa seluruh query KPI ke 1 cell tersebut.
+/// Data dummy: admin/admin, user/user, operator/operator (operator Cell 1, belum konfirmasi).
+/// </summary>
+[Table("AppUser")]
+public sealed class AppUser
+{
+    /// <summary>Username — Primary Key (unik, case-insensitive saat login).</summary>
+    [Key]
+    [MaxLength(100)]
+    public string Username { get; set; } = string.Empty;
+
+    /// <summary>Hash password PBKDF2-SHA256 (lihat <c>PasswordHasher</c>).</summary>
+    [Required]
+    public string PasswordHash { get; set; } = string.Empty;
+
+    /// <summary>Role: "admin" atau "user". Operator memakai role "user".</summary>
+    [Required]
+    [MaxLength(20)]
+    public string Role { get; set; } = "user";
+
+    /// <summary>True bila akun ini operator (akses dibatasi 1 cell).</summary>
+    [Required]
+    public bool IsOperator { get; set; }
+
+    /// <summary>Cell yang ditugaskan ke operator. Null untuk non-operator.</summary>
+    public long? AssignedCellId { get; set; }
+
+    /// <summary>True bila operator sudah mengonfirmasi identitasnya.</summary>
+    [Required]
+    public bool IdentityConfirmed { get; set; }
+
+    /// <summary>Waktu konfirmasi identitas (UTC). Null bila belum konfirmasi.</summary>
+    public DateTime? ConfirmedAt { get; set; }
+
+    /// <summary>Navigation property: Cell tujuan operator.</summary>
+    [ForeignKey("AssignedCellId")]
+    public Cell? AssignedCell { get; set; }
+}

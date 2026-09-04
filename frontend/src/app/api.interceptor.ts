@@ -18,6 +18,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         localStorage.removeItem('srs-liba-token');
         localStorage.removeItem('srs-liba-role');
         localStorage.removeItem('srs-liba-user');
+        localStorage.removeItem('srs-liba-operator');
+        localStorage.removeItem('srs-liba-cell');
+        localStorage.removeItem('srs-liba-cellname');
+        localStorage.removeItem('srs-liba-confirmed');
         if (typeof window !== 'undefined') {
           window.location.reload();
         }

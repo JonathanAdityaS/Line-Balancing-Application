@@ -38,6 +38,9 @@ public sealed class AppDbContext : DbContext
     /// <summary>Tabel log utama TaktLogTime (360 row dummy) — sumber semua KPI.</summary>
     public DbSet<TaktLogTime> TaktLogTimes => Set<TaktLogTime>();
 
+    /// <summary>Tabel akun pengguna lokal (admin/user/operator).</summary>
+    public DbSet<AppUser> Users => Set<AppUser>();
+
     /// <summary>
     /// Konfigurasi mapping entity → tabel database:
     /// nama tabel, panjang kolom, relasi FK, dan index.
@@ -118,6 +121,21 @@ public sealed class AppDbContext : DbContext
             entity.HasOne(x => x.MeterType)
                 .WithMany(x => x.TaktLogTimes)
                 .HasForeignKey(x => x.MeterTypeId);
+        });
+
+        // --- Tabel AppUser (akun lokal) ---
+        modelBuilder.Entity<AppUser>(entity =>
+        {
+            entity.ToTable("AppUser");
+            entity.HasKey(x => x.Username);
+            entity.Property(x => x.Username).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Role).HasMaxLength(20).IsRequired();
+            entity.HasIndex(x => x.AssignedCellId);
+            // Relasi opsional: operator → cell yang ditugaskan
+            entity.HasOne(x => x.AssignedCell)
+                .WithMany()
+                .HasForeignKey(x => x.AssignedCellId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

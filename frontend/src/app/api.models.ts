@@ -18,6 +18,19 @@ export interface KpiFilter {
   dateTo?: string;
 }
 
+export interface OperatorProfile {
+  username: string;
+  role: string;
+  isOperator: boolean;
+  assignedCellId: number | null;
+  assignedCellName: string | null;
+  identityConfirmed: boolean;
+}
+
+export interface LoginResponse extends OperatorProfile {
+  token: string;
+}
+
 export interface PagedResult<T> {
   items: T[];
   page: number;

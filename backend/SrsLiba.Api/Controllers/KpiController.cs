@@ -38,6 +38,10 @@ public sealed class KpiController : ControllerBase
     [HttpGet("dashboard")]
     public async Task<ActionResult<KpiDashboardResult>> GetDashboard([FromQuery] KpiFilter filter, CancellationToken ct)
     {
+        // Operator dipaksa ke cell-nya (backend, bukan sekadar UI)
+        filter = OperatorScope.EnforceCell(filter, User);
+        if (OperatorScope.IsUnconfirmedOperator(User))
+            return Problem(statusCode: 403, title: "Identity not confirmed", detail: "Operator wajib mengonfirmasi identitas terlebih dahulu.");
         var invalid = ValidateDateRange(filter);
         if (invalid is not null) return invalid;
         var result = await _kpiService.GetDashboardAsync(filter, ct);
@@ -55,6 +59,9 @@ public sealed class KpiController : ControllerBase
     [HttpGet("heatmap/takt")]
     public async Task<ActionResult<IReadOnlyList<TaktComparisonDto>>> GetTaktHeatmap([FromQuery] KpiFilter filter, CancellationToken ct)
     {
+        filter = OperatorScope.EnforceCell(filter, User);
+        if (OperatorScope.IsUnconfirmedOperator(User))
+            return Problem(statusCode: 403, title: "Identity not confirmed", detail: "Operator wajib mengonfirmasi identitas terlebih dahulu.");
         var invalid = ValidateDateRange(filter);
         if (invalid is not null) return invalid;
         var takt = await _kpiService.GetTaktHeatmapAsync(filter, ct);
@@ -104,6 +111,9 @@ public sealed class KpiController : ControllerBase
             return Problem(statusCode: 400, title: "Invalid pageSize", detail: $"pageSize harus antara 1 dan {MaxPageSize}.");
         }
 
+        filter = OperatorScope.EnforceCell(filter, User);
+        if (OperatorScope.IsUnconfirmedOperator(User))
+            return Problem(statusCode: 403, title: "Identity not confirmed", detail: "Operator wajib mengonfirmasi identitas terlebih dahulu.");
         var invalidRange = ValidateDateRange(filter);
         if (invalidRange is not null) return invalidRange;
 

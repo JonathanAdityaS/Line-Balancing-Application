@@ -50,6 +50,17 @@ protected readonly loadingTakt = signal(false);
     password: ['', Validators.required]
   });
 
+  // ---------- Operator state (role tetap "user", dibatasi via atribut akun) ----------
+  protected readonly isOperator = signal(localStorage.getItem('srs-liba-operator') === '1');
+  protected readonly assignedCellId = signal(localStorage.getItem('srs-liba-cell') ?? '');
+  protected readonly assignedCellName = signal(localStorage.getItem('srs-liba-cellname') ?? '');
+  protected readonly identityConfirmed = signal((localStorage.getItem('srs-liba-confirmed') ?? '1') === '1');
+  protected readonly confirmLoading = signal(false);
+  protected readonly confirmError = signal('');
+  protected readonly confirmForm = this.fb.nonNullable.group({
+    password: ['', Validators.required]
+  });
+
   // ---------- Theme (dark default) ----------
   protected readonly theme = signal<'dark' | 'light'>('dark');
 
@@ -108,9 +119,51 @@ protected readonly loadingTakt = signal(false);
     });
 
     if (this.isLoggedIn()) {
-      this.loadMasters();
-      this.load();
+      this.refreshProfile();
     }
+  }
+
+  /** True bila operator yang belum mengonfirmasi identitas → dashboard digate. */
+  get needsIdentityConfirm(): boolean {
+    return this.isOperator() && !this.identityConfirmed();
+  }
+
+  /** Ambil profil terbaru dari server (status konfirmasi & cell operator). */
+  private refreshProfile(): void {
+    this.api.getMe().subscribe({
+      next: (me) => {
+        this.applyProfile(me.isOperator, me.assignedCellId, me.assignedCellName, me.identityConfirmed);
+        if (this.isOperator()) this.applyOperatorLock();
+        if (this.needsIdentityConfirm) return; // tunggu konfirmasi identitas
+        this.loadMasters();
+        this.load();
+      },
+      error: () => {
+        // Fallback: token mungkin basi — coba muat seperti biasa
+        if (this.isOperator()) this.applyOperatorLock();
+        this.loadMasters();
+        this.load();
+      }
+    });
+  }
+
+  /** Simpan profil operator ke signal + localStorage. */
+  private applyProfile(isOperator: boolean, assignedCellId: number | null, assignedCellName: string | null, identityConfirmed: boolean): void {
+    this.isOperator.set(isOperator);
+    this.assignedCellId.set(assignedCellId?.toString() ?? '');
+    this.assignedCellName.set(assignedCellName ?? '');
+    this.identityConfirmed.set(identityConfirmed);
+    localStorage.setItem('srs-liba-operator', isOperator ? '1' : '0');
+    localStorage.setItem('srs-liba-cell', assignedCellId?.toString() ?? '');
+    localStorage.setItem('srs-liba-cellname', assignedCellName ?? '');
+    localStorage.setItem('srs-liba-confirmed', identityConfirmed ? '1' : '0');
+  }
+
+  /** Kunci filter cell ke cell operator (dropdown disabled, nilai tetap terkirim). */
+  private applyOperatorLock(): void {
+    const cell = this.assignedCellId();
+    if (cell) this.form.controls.cell.setValue(cell);
+    this.form.controls.cell.disable();
   }
 
   ngAfterViewInit(): void {}
@@ -272,9 +325,14 @@ protected readonly loadingTakt = signal(false);
     this.load();
   }
 
-  /** Reset semua filter lalu muat ulang data. */
+  /** Reset semua filter lalu muat ulang data (cell operator tetap terkunci). */
   clearFilters(): void {
-    this.form.patchValue({ stationId: '', cell: '', meterType: '', dateFrom: '', dateTo: '' });
+    if (this.isOperator()) {
+      this.form.patchValue({ stationId: '', meterType: '', dateFrom: '', dateTo: '' });
+      this.applyOperatorLock();
+    } else {
+      this.form.patchValue({ stationId: '', cell: '', meterType: '', dateFrom: '', dateTo: '' });
+    }
     this.load();
     this.fetchTaktHeatmap();
     this.fetchTaktTargets();
@@ -322,8 +380,11 @@ protected readonly loadingTakt = signal(false);
         localStorage.setItem('srs-liba-user', res.username);
         this.username.set(res.username);
         this.userRole.set(res.role);
+        this.applyProfile(res.isOperator, res.assignedCellId, res.assignedCellName, res.identityConfirmed);
         this.isLoggedIn.set(true);
         this.loginLoading.set(false);
+        if (this.isOperator()) this.applyOperatorLock();
+        if (this.needsIdentityConfirm) return; // operator wajib konfirmasi dulu
         this.loadMasters();
         this.load();
       },
@@ -334,13 +395,46 @@ protected readonly loadingTakt = signal(false);
     });
   }
 
+  /** Konfirmasi identitas operator (verifikasi ulang password). */
+  confirmIdentity(): void {
+    if (this.confirmForm.invalid) return;
+    this.confirmLoading.set(true);
+    this.confirmError.set('');
+    const { password } = this.confirmForm.getRawValue();
+    this.api.confirmIdentity(password).subscribe({
+      next: (res) => {
+        localStorage.setItem('srs-liba-token', res.token);
+        this.applyProfile(res.isOperator, res.assignedCellId, res.assignedCellName, res.identityConfirmed);
+        this.confirmLoading.set(false);
+        this.confirmForm.reset();
+        this.loadMasters();
+        this.load();
+      },
+      error: (err) => {
+        this.confirmError.set(err.status === 401 ? 'Password salah. Konfirmasi identitas gagal.' : 'Gagal mengonfirmasi identitas');
+        this.confirmLoading.set(false);
+      }
+    });
+  }
+
   logout(): void {
     localStorage.removeItem('srs-liba-token');
     localStorage.removeItem('srs-liba-role');
     localStorage.removeItem('srs-liba-user');
+    localStorage.removeItem('srs-liba-operator');
+    localStorage.removeItem('srs-liba-cell');
+    localStorage.removeItem('srs-liba-cellname');
+    localStorage.removeItem('srs-liba-confirmed');
     this.isLoggedIn.set(false);
     this.username.set('');
     this.userRole.set('');
+    this.isOperator.set(false);
+    this.assignedCellId.set('');
+    this.assignedCellName.set('');
+    this.identityConfirmed.set(true);
+    this.confirmForm.reset();
+    this.confirmError.set('');
+    this.form.controls.cell.enable();
     this.dashboard.set(null);
     this.history.set([]);
     if (this.refreshTimer) {

@@ -55,7 +55,7 @@ builder.Services.AddScoped<ISyncService, SyncService>();                   // Ta
 // Binding konfigurasi
 builder.Services.Configure<KpiOptions>(builder.Configuration.GetSection(KpiOptions.SectionName));
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
-builder.Services.AddSingleton<TokenService>();
+builder.Services.AddScoped<TokenService>(); // Scoped agar bisa query tabel AppUser via DbContext
 
 // --- JWT Authentication ---
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("Jwt:Secret missing");
@@ -101,6 +101,9 @@ using (var scope = app.Services.CreateScope())
         await CsvSeeder.SeedAsync(db, csvFolder);
         logger.LogInformation("Data bersumber dari CSV dummy (fallback).");
     }
+
+    // 3) Selalu pastikan akun bawaan ada (admin/user/operator) — idempotent.
+    await UserSeeder.SeedAsync(db);
 }
 
 // --- HTTP request pipeline (urutan penting) ---

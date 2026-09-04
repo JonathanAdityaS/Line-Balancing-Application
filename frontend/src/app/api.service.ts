@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { KpiDashboardResult, KpiFilter, MasterLookupDto, PagedResult, StationLookupDto, TaktLogDetailDto, TaktComparisonDto } from './api.models';
+import { KpiDashboardResult, KpiFilter, LoginResponse, MasterLookupDto, OperatorProfile, PagedResult, StationLookupDto, TaktLogDetailDto, TaktComparisonDto } from './api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -22,8 +22,16 @@ export class ApiService {
     return this.http.get<MasterLookupDto[]>(`${this.baseUrl}/api/master/meter-types`);
   }
 
-  login(username: string, password: string): Observable<{ token: string, username: string, role: string }> {
-    return this.http.post<{ token: string, username: string, role: string }>(`${this.baseUrl}/api/auth/login`, { username, password });
+  login(username: string, password: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.baseUrl}/api/auth/login`, { username, password });
+  }
+
+  getMe(): Observable<OperatorProfile> {
+    return this.http.get<OperatorProfile>(`${this.baseUrl}/api/auth/me`);
+  }
+
+  confirmIdentity(password: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.baseUrl}/api/auth/confirm-identity`, { password });
   }
 
   getDashboard(filter: KpiFilter): Observable<KpiDashboardResult> {
