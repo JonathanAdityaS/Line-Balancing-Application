@@ -110,10 +110,10 @@ public sealed class UnitMaster
 
 /// <summary>
 /// Entitas akun pengguna aplikasi — tabel database: "AppUser" (lokal SQLite).
-/// Role tetap "admin"/"user" (tidak menambah role baru): operator adalah user
-/// biasa yang diberi atribut <see cref="IsOperator"/> + <see cref="AssignedCellId"/>
-/// sehingga backend memaksa seluruh query KPI ke 1 cell tersebut.
-/// Data dummy: admin/admin, user/user, operator/operator (operator Cell 1, belum konfirmasi).
+/// Role hanya "admin" dan "operator": operator adalah akun yang diberi atribut
+/// <see cref="IsOperator"/> + <see cref="AssignedCellId"/> sehingga backend
+/// memaksa seluruh query KPI ke 1 cell tersebut.
+/// Data dummy: admin/admin, operator/operator (operator Cell 1, belum konfirmasi).
 /// </summary>
 [Table("AppUser")]
 public sealed class AppUser
@@ -127,10 +127,10 @@ public sealed class AppUser
     [Required]
     public string PasswordHash { get; set; } = string.Empty;
 
-    /// <summary>Role: "admin" atau "user". Operator memakai role "user".</summary>
+    /// <summary>Role: "admin" atau "operator".</summary>
     [Required]
     [MaxLength(20)]
-    public string Role { get; set; } = "user";
+    public string Role { get; set; } = "operator";
 
     /// <summary>True bila akun ini operator (akses dibatasi 1 cell).</summary>
     [Required]

@@ -50,7 +50,7 @@ protected readonly loadingTakt = signal(false);
     password: ['', Validators.required]
   });
 
-  // ---------- Operator state (role tetap "user", dibatasi via atribut akun) ----------
+  // ---------- Operator state (role "operator", dibatasi 1 cell via atribut akun) ----------
   protected readonly isOperator = signal(localStorage.getItem('srs-liba-operator') === '1');
   protected readonly assignedCellId = signal(localStorage.getItem('srs-liba-cell') ?? '');
   protected readonly assignedCellName = signal(localStorage.getItem('srs-liba-cellname') ?? '');

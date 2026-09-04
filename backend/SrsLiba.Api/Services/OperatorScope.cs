@@ -1,6 +1,6 @@
 // ============================================================
 // OperatorScope — Penegakan batas akses operator di sisi backend.
-// Operator memakai role "user" + claim is_operator/assigned_cell.
+// Operator memakai role "operator" + claim is_operator/assigned_cell.
 // Semua filter KPI yang masuk dari operator DIPAKSA ke AssignedCellId,
 // sehingga operator tidak bisa melihat cell lain walau memanipulasi
 // query string atau memanggil API langsung.

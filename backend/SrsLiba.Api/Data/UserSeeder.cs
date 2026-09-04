@@ -1,8 +1,8 @@
 // ============================================================
 // UserSeeder — Membuat tabel AppUser bila belum ada (untuk app.db lama
-// yang dibuat sebelum fitur operator) lalu mengisi 3 akun bawaan:
-// admin/admin (role admin), user/user (role user),
-// operator/operator (role user + IsOperator, Cell 1, belum konfirmasi).
+// yang dibuat sebelum fitur operator) lalu mengisi 2 akun bawaan:
+// admin/admin (role admin) dan operator/operator (role operator,
+// Cell 1, belum konfirmasi). Konsep "user" umum sudah dihapus.
 // Idempotent: tidak menambah duplikat bila akun sudah ada.
 // ============================================================
 
@@ -36,9 +36,23 @@ public static class UserSeeder
             )
             """, ct);
 
+        // Migrasi app.db lama: hapus akun demo "user" (hanya bila password-nya
+        // masih bawaan, agar akun sungguhan tidak ikut terhapus) dan ubah
+        // role operator lama ("user" → "operator").
+        var legacyUser = await db.Users.FindAsync(new object[] { "user" }, ct);
+        if (legacyUser is not null && !legacyUser.IsOperator
+            && PasswordHasher.Verify("user", legacyUser.PasswordHash))
+        {
+            db.Users.Remove(legacyUser);
+        }
+        var legacyOperator = await db.Users.FindAsync(new object[] { "operator" }, ct);
+        if (legacyOperator is not null && legacyOperator.IsOperator && legacyOperator.Role == "user")
+        {
+            legacyOperator.Role = "operator";
+        }
+
         await EnsureUserAsync(db, "admin", "admin", "admin", isOperator: false, assignedCellId: null, confirmed: true, ct);
-        await EnsureUserAsync(db, "user", "user", "user", isOperator: false, assignedCellId: null, confirmed: true, ct);
-        await EnsureUserAsync(db, "operator", "operator", "user", isOperator: true, assignedCellId: 1, confirmed: false, ct);
+        await EnsureUserAsync(db, "operator", "operator", "operator", isOperator: true, assignedCellId: 1, confirmed: false, ct);
 
         await db.SaveChangesAsync(ct);
     }

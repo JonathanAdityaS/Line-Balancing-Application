@@ -45,7 +45,7 @@
         <form [formGroup]="loginForm" (ngSubmit)="login()">
           <div>
             <label>Username</label>
-            <input type="text" formControlName="username" placeholder="admin / user" />
+            <input type="text" formControlName="username" placeholder="admin / operator" />
           </div>
           <div>
             <label>Password</label>
@@ -56,7 +56,7 @@
           }
           <button type="submit" class="btn-primary" [disabled]="loginLoading()">{{ loginLoading() ? 'Loading...' : 'Login' }}</button>
         </form>
-        <p class="card-sub" style="text-align:center; margin-top:16px;">Demo: admin/admin, user/user, atau operator/operator</p>
+        <p class="card-sub" style="text-align:center; margin-top:16px;">Demo: admin/admin atau operator/operator</p>
         <p class="card-sub" style="text-align:center;"><button type="button" class="btn-reset" (click)="toggleLoginForm()">Tutup</button></p>
       </div>
     </section>
