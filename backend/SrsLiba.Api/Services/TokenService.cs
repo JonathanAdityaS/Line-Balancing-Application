@@ -52,6 +52,9 @@ public sealed class TokenService
             .FirstOrDefaultAsync(x => x.Username.ToLower() == username.ToLower(), ct);
         if (u is null) return null;
         if (!PasswordHasher.Verify(password, u.PasswordHash)) return null;
+        // Hanya 2 role yang boleh login: admin dan operator.
+        // Baris "user" sisa (bila ada di app.db lama) otomatis ditolak.
+        if (u.Role != "admin" && u.Role != "operator") return null;
 
         return new LoginResult(
             GenerateToken(u.Username, u.Role, u.IsOperator, u.AssignedCellId, u.IdentityConfirmed),

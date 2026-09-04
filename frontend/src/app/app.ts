@@ -63,6 +63,7 @@ protected readonly loadingTakt = signal(false);
 
   // ---------- Panel login (dashboard publik, login opsional) ----------
   protected readonly showLoginForm = signal(false);
+  protected readonly showPassword = signal(false);
 
   // ---------- Theme (dark default) ----------
   protected readonly theme = signal<'dark' | 'light'>('dark');
@@ -134,6 +135,17 @@ protected readonly loadingTakt = signal(false);
   /** Tampilkan/sembunyikan panel login (kanan atas). */
   toggleLoginForm(): void {
     this.showLoginForm.update(v => !v);
+    this.loginError.set('');
+  }
+
+  /** Tampilkan/sembunyikan teks password di form login. */
+  togglePassword(): void {
+    this.showPassword.update(v => !v);
+  }
+
+  /** Isi otomatis kredensial demo (admin/admin atau operator/operator). */
+  fillDemo(role: 'admin' | 'operator'): void {
+    this.loginForm.setValue({ username: role, password: role });
     this.loginError.set('');
   }
 

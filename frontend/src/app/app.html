@@ -39,32 +39,43 @@
   </header>
 
   @if (showLoginForm() && !isLoggedIn()) {
-    <section class="login-wrapper">
-      <div class="login-box">
-        <h2>Login</h2>
-        <form [formGroup]="loginForm" (ngSubmit)="login()">
-          <div>
-            <label>Username</label>
-            <input type="text" formControlName="username" placeholder="admin / operator" />
+    <div class="login-overlay" (click)="toggleLoginForm()">
+      <section class="login-wrapper" (click)="$event.stopPropagation()">
+        <div class="login-box">
+          <h2>Login</h2>
+          <p class="card-sub" style="text-align:center; margin-top:-8px;">Masuk sebagai admin atau operator</p>
+          <form [formGroup]="loginForm" (ngSubmit)="login()">
+            <div>
+              <label>Username</label>
+              <input type="text" formControlName="username" placeholder="admin / operator" autocomplete="username" />
+            </div>
+            <div>
+              <label>Password</label>
+              <div class="pw-row">
+                <input [type]="showPassword() ? 'text' : 'password'" formControlName="password" placeholder="password" autocomplete="current-password" />
+                <button type="button" class="btn-icon" (click)="togglePassword()" [title]="showPassword() ? 'Sembunyikan password' : 'Tampilkan password'">{{ showPassword() ? '🙈' : '👁' }}</button>
+              </div>
+            </div>
+            @if (loginError()) {
+              <p class="error-banner">{{ loginError() }}</p>
+            }
+            <button type="submit" class="btn-primary" [disabled]="loginLoading()">{{ loginLoading() ? 'Loading...' : 'Login' }}</button>
+          </form>
+          <div class="demo-row">
+            <span class="card-sub">Demo, klik untuk isi:</span>
+            <button type="button" class="btn-chip" (click)="fillDemo('admin')">Admin</button>
+            <button type="button" class="btn-chip" (click)="fillDemo('operator')">Operator</button>
           </div>
-          <div>
-            <label>Password</label>
-            <input type="password" formControlName="password" placeholder="password" />
-          </div>
-          @if (loginError()) {
-            <p class="error-banner">{{ loginError() }}</p>
-          }
-          <button type="submit" class="btn-primary" [disabled]="loginLoading()">{{ loginLoading() ? 'Loading...' : 'Login' }}</button>
-        </form>
-        <p class="card-sub" style="text-align:center; margin-top:16px;">Demo: admin/admin atau operator/operator</p>
-        <p class="card-sub" style="text-align:center;"><button type="button" class="btn-reset" (click)="toggleLoginForm()">Tutup</button></p>
-      </div>
-    </section>
+          <p class="card-sub" style="text-align:center;"><button type="button" class="btn-reset" (click)="toggleLoginForm()">Tutup</button></p>
+        </div>
+      </section>
+    </div>
   }
   @if (needsIdentityConfirm) {
-    <section class="login-wrapper">
-      <div class="login-box">
-        <h2>Konfirmasi Identitas Operator</h2>
+    <div class="login-overlay">
+      <section class="login-wrapper">
+        <div class="login-box">
+          <h2>Konfirmasi Identitas Operator</h2>
         <p class="card-sub">Akun <strong>{{ username() }}</strong> terdaftar sebagai operator untuk <strong>{{ assignedCellName() }}</strong>.</p>
         <p class="card-sub">Masukkan ulang password untuk mengonfirmasi identitas Anda sebelum mengakses dashboard.</p>
         <form [formGroup]="confirmForm" (ngSubmit)="confirmIdentity()">
@@ -77,8 +88,9 @@
           }
           <button type="submit" class="btn-primary" [disabled]="confirmLoading()">{{ confirmLoading() ? 'Memverifikasi...' : 'Saya mengonfirmasi' }}</button>
         </form>
-      </div>
-    </section>
+        </div>
+      </section>
+    </div>
   } @else {
   <section class="filters" [formGroup]="form">
     <select formControlName="cell">
