@@ -38,6 +38,8 @@ public sealed class KpiController : ControllerBase
     [HttpGet("dashboard")]
     public async Task<ActionResult<KpiDashboardResult>> GetDashboard([FromQuery] KpiFilter filter, CancellationToken ct)
     {
+        var invalid = ValidateDateRange(filter);
+        if (invalid is not null) return invalid;
         var result = await _kpiService.GetDashboardAsync(filter, ct);
         return Ok(result);
     }
@@ -53,6 +55,8 @@ public sealed class KpiController : ControllerBase
     [HttpGet("heatmap/takt")]
     public async Task<ActionResult<IReadOnlyList<TaktComparisonDto>>> GetTaktHeatmap([FromQuery] KpiFilter filter, CancellationToken ct)
     {
+        var invalid = ValidateDateRange(filter);
+        if (invalid is not null) return invalid;
         var takt = await _kpiService.GetTaktHeatmapAsync(filter, ct);
         return Ok(takt);
     }
@@ -100,7 +104,24 @@ public sealed class KpiController : ControllerBase
             return Problem(statusCode: 400, title: "Invalid pageSize", detail: $"pageSize harus antara 1 dan {MaxPageSize}.");
         }
 
+        var invalidRange = ValidateDateRange(filter);
+        if (invalidRange is not null) return invalidRange;
+
         var result = await _kpiService.GetHistoricalAsync(filter, page, pageSize, ct);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Validasi rentang tanggal: bila DateFrom &gt; DateTo → 400.
+    /// Perbandingan memakai tanggal saja (abaikan komponen jam).
+    /// </summary>
+    private ActionResult? ValidateDateRange(KpiFilter filter)
+    {
+        if (filter.DateFrom.HasValue && filter.DateTo.HasValue
+            && filter.DateFrom.Value.Date > filter.DateTo.Value.Date)
+        {
+            return Problem(statusCode: 400, title: "Invalid date range", detail: "DateFrom tidak boleh lebih besar dari DateTo.");
+        }
+        return null;
     }
 }

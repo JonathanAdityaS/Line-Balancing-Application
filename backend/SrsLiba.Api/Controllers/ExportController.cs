@@ -38,6 +38,11 @@ public sealed class ExportController : ControllerBase
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> ExportExcel([FromQuery] KpiFilter filter, CancellationToken ct)
     {
+        if (filter.DateFrom.HasValue && filter.DateTo.HasValue
+            && filter.DateFrom.Value.Date > filter.DateTo.Value.Date)
+        {
+            return Problem(statusCode: 400, title: "Invalid date range", detail: "DateFrom tidak boleh lebih besar dari DateTo.");
+        }
         // Hitung KPI dulu (tercache bila baru saja dimuat), lalu bentuk file
         var dashboard = await _kpiService.GetDashboardAsync(filter, ct);
         var bytes = _exportService.ExportExcel(dashboard, filter);
@@ -56,6 +61,11 @@ public sealed class ExportController : ControllerBase
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> ExportPdf([FromQuery] KpiFilter filter, CancellationToken ct)
     {
+        if (filter.DateFrom.HasValue && filter.DateTo.HasValue
+            && filter.DateFrom.Value.Date > filter.DateTo.Value.Date)
+        {
+            return Problem(statusCode: 400, title: "Invalid date range", detail: "DateFrom tidak boleh lebih besar dari DateTo.");
+        }
         var dashboard = await _kpiService.GetDashboardAsync(filter, ct);
         var bytes = _exportService.ExportPdf(dashboard, filter);
 

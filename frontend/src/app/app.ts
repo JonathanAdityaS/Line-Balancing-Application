@@ -73,7 +73,9 @@ protected readonly loadingTakt = signal(false);
   protected readonly form = this.fb.group({
     stationId: [''],
     cell: [''],
-    meterType: ['']
+    meterType: [''],
+    dateFrom: [''],
+    dateTo: ['']
   });
 
   @ViewChild('barChart') barChartRef!: ElementRef<HTMLCanvasElement>;
@@ -212,6 +214,13 @@ protected readonly loadingTakt = signal(false);
     this.error.set('');
     const filter = this.toFilter();
 
+    // Validasi rentang tanggal di sisi klien agar tidak perlu request sia-sia
+    if (filter.dateFrom && filter.dateTo && filter.dateFrom > filter.dateTo) {
+      this.error.set('DateFrom tidak boleh lebih besar dari DateTo.');
+      this.loading.set(false);
+      return;
+    }
+
     this.api.getDashboard(filter).subscribe({
       next: data => {
         this.dashboard.set(data);
@@ -265,7 +274,7 @@ protected readonly loadingTakt = signal(false);
 
   /** Reset semua filter lalu muat ulang data. */
   clearFilters(): void {
-    this.form.patchValue({ stationId: '', cell: '', meterType: '' });
+    this.form.patchValue({ stationId: '', cell: '', meterType: '', dateFrom: '', dateTo: '' });
     this.load();
     this.fetchTaktHeatmap();
     this.fetchTaktTargets();
@@ -274,7 +283,7 @@ protected readonly loadingTakt = signal(false);
   /** Cek apakah ada filter aktif (untuk tombol reset). */
   get hasActiveFilter(): boolean {
     const raw = this.form.getRawValue();
-    return Boolean(raw.cell || raw.stationId || raw.meterType);
+    return Boolean(raw.cell || raw.stationId || raw.meterType || raw.dateFrom || raw.dateTo);
   }
 
   /** Fetch heatmap Takt per cell/station. */
@@ -611,7 +620,9 @@ protected readonly loadingTakt = signal(false);
     return {
       cellId: raw.cell ?? undefined,
       stationId: raw.stationId ?? undefined,
-      meterTypeId: raw.meterType ?? undefined
+      meterTypeId: raw.meterType ?? undefined,
+      dateFrom: raw.dateFrom || undefined,
+      dateTo: raw.dateTo || undefined
     };
   }
 }

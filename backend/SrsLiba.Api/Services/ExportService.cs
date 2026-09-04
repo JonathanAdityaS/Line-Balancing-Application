@@ -31,6 +31,20 @@ public interface IExportService
 /// <summary>Implementasi export dengan ClosedXML (Excel) dan QuestPDF (PDF).</summary>
 public sealed class ExportService : IExportService
 {
+    /// <summary>
+    /// Format teks periode tanggal untuk header laporan.
+    /// Contoh: "2026-08-01 s/d 2026-08-31", ">= 2026-08-01", atau "Semua tanggal".
+    /// </summary>
+    private static string FormatPeriode(KpiFilter filter)
+    {
+        var from = filter.DateFrom?.ToString("yyyy-MM-dd");
+        var to = filter.DateTo?.ToString("yyyy-MM-dd");
+        if (from is null && to is null) return "Semua tanggal";
+        if (from is not null && to is not null) return $"{from} s/d {to}";
+        if (from is not null) return $">= {from}";
+        return $"s/d {to}";
+    }
+
     // ================================================================
     // ============================ EXCEL =============================
     // ================================================================
@@ -66,7 +80,7 @@ public sealed class ExportService : IExportService
         // --- Info laporan & filter yang dipakai (AC-08) ---
         ws.Cell(1, 1).Value = "Line Balancing Dashboard — Ringkasan";
         ws.Cell(1, 1).Style.Font.SetBold();
-        ws.Cell(2, 1).Value = $"Filter: Cell={filter.CellId?.ToString() ?? "All"} | Station={filter.StationId?.ToString() ?? "All"} | MeterType={filter.MeterTypeId?.ToString() ?? "All"}";
+        ws.Cell(2, 1).Value = $"Filter: Cell={filter.CellId?.ToString() ?? "All"} | Station={filter.StationId?.ToString() ?? "All"} | MeterType={filter.MeterTypeId?.ToString() ?? "All"} | Periode={FormatPeriode(filter)}";
         ws.Cell(3, 1).Value = $"Dibuat: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
 
         // --- KPI utama ---
@@ -234,7 +248,7 @@ public sealed class ExportService : IExportService
                 {
                     // --- Section 1: Judul + filter + timestamp (AC-08) ---
                     col.Item().Text("Line Balancing Dashboard — Laporan").FontSize(16).SemiBold();
-                    col.Item().Text($"Filter: Cell={filter.CellId?.ToString() ?? "All"} | Station={filter.StationId?.ToString() ?? "All"} | MeterType={filter.MeterTypeId?.ToString() ?? "All"}");
+                    col.Item().Text($"Filter: Cell={filter.CellId?.ToString() ?? "All"} | Station={filter.StationId?.ToString() ?? "All"} | MeterType={filter.MeterTypeId?.ToString() ?? "All"} | Periode={FormatPeriode(filter)}");
                     col.Item().Text($"Dibuat: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                     col.Item().PaddingBottom(6);
 

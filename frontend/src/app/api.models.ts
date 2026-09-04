@@ -14,6 +14,8 @@ export interface KpiFilter {
   cellId?: string;
   stationId?: string;
   meterTypeId?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface PagedResult<T> {

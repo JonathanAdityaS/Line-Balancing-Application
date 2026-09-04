@@ -102,6 +102,9 @@ public sealed class ProductionRepository : IProductionRepository
     /// </summary>
     private IQueryable<TaktLogRowDto> ProjectLogs(KpiFilter filter)
     {
+        // Normalisasi ke batas hari agar filter tanggal bersifat inklusif per hari (StartTime).
+        var fromDate = filter.DateFrom?.Date;
+        var toExclusive = filter.DateTo?.Date.AddDays(1);
         return from log in _db.TaktLogTimes
                join station in _db.Stations on log.StationId equals station.Id
                join cell in _db.Cells on station.CellId equals cell.Id
@@ -109,6 +112,8 @@ public sealed class ProductionRepository : IProductionRepository
                where (filter.CellId == null || cell.Id == filter.CellId)
                   && (filter.StationId == null || log.StationId == filter.StationId)
                   && (filter.MeterTypeId == null || log.MeterTypeId == filter.MeterTypeId)
+                  && (fromDate == null || log.StartTime >= fromDate)
+                  && (toExclusive == null || log.StartTime < toExclusive)
                orderby log.StartTime
                select new TaktLogRowDto(
                    log.Id,

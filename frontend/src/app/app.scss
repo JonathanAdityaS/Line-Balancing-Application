@@ -181,6 +181,14 @@ button {
   transition: background 0.3s ease;
 }
 
+.date-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 input, select {
   background: var(--bg-deep);
   border: 1px solid var(--border);

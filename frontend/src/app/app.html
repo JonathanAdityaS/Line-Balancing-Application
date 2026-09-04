@@ -77,6 +77,14 @@
         <option [value]="meter.id">{{ meter.name }}</option>
       }
     </select>
+    <label class="date-filter">
+      Dari
+      <input type="date" formControlName="dateFrom" />
+    </label>
+    <label class="date-filter">
+      Sampai
+      <input type="date" formControlName="dateTo" />
+    </label>
     @if (hasActiveFilter) {
       <button type="button" class="btn-reset" (click)="clearFilters()" title="Reset semua filter">
         ✕ Reset Filter
