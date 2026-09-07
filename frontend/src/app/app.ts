@@ -268,6 +268,33 @@ protected readonly loadingTakt = signal(false);
     return { status, overload, warning, normal };
   }
 
+  /**
+   * Kelompokkan data takt heatmap per cell untuk grid Cell × Station.
+   * Urutan cell & station mengikuti urutan datang dari API (sort numerik).
+   */
+  get heatmapRows(): { cell: string; stations: TaktComparisonDto[] }[] {
+    const map = new Map<string, TaktComparisonDto[]>();
+    for (const s of this.taktHeatmap()) {
+      const arr = map.get(s.cellName) ?? [];
+      arr.push(s);
+      map.set(s.cellName, arr);
+    }
+    return [...map.entries()].map(([cell, stations]) => ({ cell, stations }));
+  }
+
+  /** Kelas warna tile heatmap berdasar status takt (abu-abu bila tanpa data). */
+  heatTileClass(s: TaktComparisonDto): string {
+    if (s.averageCycleTimeSeconds <= 0) return 'heat-tile heat-nodata';
+    if (s.status === 'overload') return 'heat-tile heat-overload';
+    if (s.status === 'warning') return 'heat-tile heat-warning';
+    return 'heat-tile heat-normal';
+  }
+
+  /** Tooltip tile heatmap: nama, cell, rata-rata, dan status. */
+  heatTitle(s: TaktComparisonDto): string {
+    return `${s.stationName} (${s.cellName}) — avg ${s.averageCycleTimeSeconds.toFixed(1)}s, status ${s.status}`;
+  }
+
   /** Teks "x lalu" untuk timestamp update terakhir. */
   get updatedAgoText(): string {
     const lu = this.lastUpdated();

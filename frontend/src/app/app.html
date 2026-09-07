@@ -10,6 +10,9 @@
         @if (lastUpdated(); as lu) {
           <span class="updated-ago tabular">· Diperbarui {{ updatedAgoText }}</span>
         }
+        @if (autoRefresh()) {
+          <span class="updated-ago tabular">· Auto-refresh {{ refreshInterval() }}s aktif</span>
+        }
       </p>
     </div>
     <div class="actions">
@@ -37,6 +40,10 @@
       <button type="button" class="btn-export" (click)="exportPdf()" *ngIf="userRole() === 'admin'">Export PDF</button>
     </div>
   </header>
+
+  @if (isLoggedIn() && isOperator()) {
+    <div class="operator-banner">Mode Operator · {{ assignedCellName() }} — filter cell terkunci, data selain cell ini disembunyikan</div>
+  }
 
   @if (showLoginForm() && !isLoggedIn()) {
     <div class="login-overlay" (click)="toggleLoginForm()">
@@ -119,6 +126,9 @@
       Sampai
       <input type="date" formControlName="dateTo" />
     </label>
+    <button type="button" class="btn-primary" (click)="load()" title="Terapkan filter dan muat ulang data">
+      Terapkan Filter
+    </button>
     @if (hasActiveFilter) {
       <button type="button" class="btn-reset" (click)="clearFilters()" title="Reset semua filter">
         ✕ Reset Filter
@@ -207,6 +217,9 @@
       </article>
     </section>
 
+    @if (!data.averagePerStation.length) {
+      <div class="empty-state">Tidak ada data chart pada periode/filter ini.</div>
+    }
     <section class="charts-grid">
       <div class="panel">
         <h3>Average Per Station (s)</h3>
@@ -249,7 +262,9 @@
           </thead>
           <tbody>
             @for (row of data.stationSummary; track row.stationId) {
-              <tr class="clickable" (click)="selectStation(row.stationId)" title="Klik untuk filter station ini">
+              <tr class="clickable" (click)="selectStation(row.stationId)" title="Klik untuk filter station ini"
+                [class.row-overload]="row.hasData && row.taktStatus === 'overload'"
+                [class.row-warning]="row.hasData && row.taktStatus === 'warning'">
                 <td>{{ row.stationName || 'N/A' }}</td>
                 <td>{{ row.cellName || 'N/A' }}</td>
                 <td class="tabular">{{ row.hasData ? (row.avgCycleTimeSeconds | number:'1.0-2') : 'N/A' }}</td>
@@ -304,6 +319,33 @@
           </tfoot>
         </table>
       </div>
+      @if (!data.stationSummary.length) {
+        <div class="empty-state">Tidak ada data station pada periode/filter ini.</div>
+      }
+    </section>
+
+    <section class="panel">
+      <h3>
+        Heatmap Takt — Cell × Station
+        <span class="table-meta">Hijau normal · Kuning warning · Merah overload · Abu-abu tanpa data</span>
+      </h3>
+      @if (!taktHeatmap().length) {
+        <div class="empty-state">Tidak ada data takt pada periode/filter ini.</div>
+      } @else {
+        @for (row of heatmapRows; track row.cell) {
+          <div class="heat-row">
+            <div class="heat-cell-name">{{ row.cell }}</div>
+            <div class="heat-tiles">
+              @for (s of row.stations; track s.stationId) {
+                <div [class]="heatTileClass(s)" [title]="heatTitle(s)">
+                  <strong>{{ s.stationName }}</strong>
+                  <span>{{ s.averageCycleTimeSeconds > 0 ? (s.averageCycleTimeSeconds | number:'1.0-1') + 's' : 'N/A' }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
     </section>
 
     <section class="panel table-panel">
@@ -340,6 +382,9 @@
             }
           </tbody>
         </table>
+        @if (!data.unitFlow.length) {
+          <div class="empty-state">Tidak ada data unit flow pada periode/filter ini.</div>
+        }
         <div class="unitflow-chart">
           <canvas #flowChart></canvas>
         </div>
@@ -373,6 +418,9 @@
           </tbody>
         </table>
       </div>
+      @if (!data.unitFlowDetail.length) {
+        <div class="empty-state">Tidak ada detail unit pada periode/filter ini.</div>
+      }
     </section>
 
     <section class="panel table-panel">
@@ -410,6 +458,9 @@
           </tbody>
         </table>
       </div>
+      @if (!history().length) {
+        <div class="empty-state">Tidak ada data pada periode/filter ini. Coba ubah rentang tanggal atau reset filter.</div>
+      }
       <div class="pager">
         <button type="button" (click)="goToPage(historyPage() - 1)" [disabled]="historyPage() <= 1">« Prev</button>
         <span>Page {{ historyPage() }} / {{ historyTotalPages() }}</span>
