@@ -36,8 +36,8 @@
         </select>
       </label>
       <button type="button" class="btn-primary" (click)="load()">Load Data</button>
-      <button type="button" class="btn-export" (click)="exportExcel()" *ngIf="userRole() === 'admin'">Export Excel</button>
-      <button type="button" class="btn-export" (click)="exportPdf()" *ngIf="userRole() === 'admin'">Export PDF</button>
+      <button type="button" class="btn-export" (click)="exportExcel()" *ngIf="userRole() === 'admin'" [disabled]="exporting() !== null">{{ exporting() === 'excel' ? 'Mengunduh…' : 'Export Excel' }}</button>
+      <button type="button" class="btn-export" (click)="exportPdf()" *ngIf="userRole() === 'admin'" [disabled]="exporting() !== null">{{ exporting() === 'pdf' ? 'Mengunduh…' : 'Export PDF' }}</button>
     </div>
   </header>
 
@@ -126,6 +126,7 @@
       Sampai
       <input type="date" formControlName="dateTo" />
     </label>
+    <input type="text" formControlName="serial" placeholder="Cari serial…" title="Filter serial number yang mengandung teks ini" />
     <button type="button" class="btn-primary" (click)="load()" title="Terapkan filter dan muat ulang data">
       Terapkan Filter
     </button>
@@ -469,4 +470,7 @@
     </section>
   }
   } <!-- tutup @else konfirmasi -->
+  @if (toast(); as t) {
+    <div class="toast" [class.toast-success]="t.kind === 'success'" [class.toast-error]="t.kind === 'error'">{{ t.msg }}</div>
+  }
 </div>

@@ -84,7 +84,7 @@ public sealed class KpiService : IKpiService
     public async Task<KpiDashboardResult> GetDashboardAsync(KpiFilter filter, CancellationToken ct = default)
     {
         // Cache key unik per kombinasi filter agar hasil tidak tercampur
-        var cacheKey = $"kpi:dashboard:{filter.CellId}:{filter.StationId}:{filter.MeterTypeId}:{filter.DateFrom:yyyy-MM-dd}:{filter.DateTo:yyyy-MM-dd}";
+        var cacheKey = $"kpi:dashboard:{filter.CellId}:{filter.StationId}:{filter.MeterTypeId}:{filter.DateFrom:yyyy-MM-dd}:{filter.DateTo:yyyy-MM-dd}:{filter.SerialNumber}";
         return (await _cache.GetOrCreateAsync(cacheKey, async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = DashboardCacheDuration;

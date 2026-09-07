@@ -717,6 +717,40 @@ tfoot .total-row td {
 .unit-incomplete td { color: var(--warning); }
 
 // ============================================================
+// TOAST NOTIFIKASI (export sukses/gagal)
+// ============================================================
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 200;
+  max-width: min(360px, calc(100vw - 40px));
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 12px 24px -8px var(--shadow);
+  animation: toastIn 0.25s ease both;
+}
+
+.toast-success {
+  background: color-mix(in srgb, var(--success) 16%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--success) 50%, transparent);
+  color: var(--success);
+}
+
+.toast-error {
+  background: color-mix(in srgb, var(--danger) 16%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--danger) 50%, transparent);
+  color: var(--danger);
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+// ============================================================
 // HEATMAP TAKT — grid Cell × Station
 // ============================================================
 .heat-row {
@@ -841,6 +875,18 @@ tfoot .total-row td {
   .unitflow-row { flex-direction: column; }
   .unitflow-chart { max-width: none; width: 100%; }
 
+  // Chart scroll horizontal agar tidak gepeng di tablet
+  .charts-grid .panel { min-width: 0; overflow-x: auto; }
+  .charts-grid canvas { min-width: 300px; }
+
+  // Heatmap: nama cell pindah ke atas tile
+  .heat-row { flex-direction: column; gap: 8px; }
+  .heat-cell-name { width: auto; padding-top: 0; }
+
+  .operator-banner { font-size: 13px; padding: 10px 14px; }
+
+  .pager { flex-wrap: wrap; justify-content: center; }
+
   th, td { padding: 9px 10px; }
   td { font-size: 13px; }
 
@@ -853,5 +899,8 @@ tfoot .total-row td {
   .kpi-cards span { font-size: 11px; }
   .actions { gap: 8px; }
   button { padding: 9px 12px; font-size: 13px; }
+  .heat-tiles { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); }
+  .table-meta { float: none; display: block; margin-top: 4px; }
+  .toast { right: 12px; bottom: 12px; }
 }
 

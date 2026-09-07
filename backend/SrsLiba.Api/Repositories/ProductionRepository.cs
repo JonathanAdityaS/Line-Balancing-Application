@@ -114,6 +114,7 @@ public sealed class ProductionRepository : IProductionRepository
                   && (filter.MeterTypeId == null || log.MeterTypeId == filter.MeterTypeId)
                   && (fromDate == null || log.StartTime >= fromDate)
                   && (toExclusive == null || log.StartTime < toExclusive)
+                  && (filter.SerialNumber == null || log.SerialNumber.Contains(filter.SerialNumber))
                orderby log.StartTime
                select new TaktLogRowDto(
                    log.Id,

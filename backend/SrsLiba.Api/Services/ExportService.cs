@@ -80,7 +80,7 @@ public sealed class ExportService : IExportService
         // --- Info laporan & filter yang dipakai (AC-08) ---
         ws.Cell(1, 1).Value = "Line Balancing Dashboard — Ringkasan";
         ws.Cell(1, 1).Style.Font.SetBold();
-        ws.Cell(2, 1).Value = $"Filter: Cell={filter.CellId?.ToString() ?? "All"} | Station={filter.StationId?.ToString() ?? "All"} | MeterType={filter.MeterTypeId?.ToString() ?? "All"} | Periode={FormatPeriode(filter)}";
+        ws.Cell(2, 1).Value = $"Filter: Cell={filter.CellId?.ToString() ?? "All"} | Station={filter.StationId?.ToString() ?? "All"} | MeterType={filter.MeterTypeId?.ToString() ?? "All"} | Periode={FormatPeriode(filter)} | SN={(string.IsNullOrWhiteSpace(filter.SerialNumber) ? "Semua" : filter.SerialNumber)}";
         ws.Cell(3, 1).Value = $"Dibuat: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
 
         // --- KPI utama ---
@@ -248,7 +248,7 @@ public sealed class ExportService : IExportService
                 {
                     // --- Section 1: Judul + filter + timestamp (AC-08) ---
                     col.Item().Text("Line Balancing Dashboard — Laporan").FontSize(16).SemiBold();
-                    col.Item().Text($"Filter: Cell={filter.CellId?.ToString() ?? "All"} | Station={filter.StationId?.ToString() ?? "All"} | MeterType={filter.MeterTypeId?.ToString() ?? "All"} | Periode={FormatPeriode(filter)}");
+                    col.Item().Text($"Filter: Cell={filter.CellId?.ToString() ?? "All"} | Station={filter.StationId?.ToString() ?? "All"} | MeterType={filter.MeterTypeId?.ToString() ?? "All"} | Periode={FormatPeriode(filter)} | SN={(string.IsNullOrWhiteSpace(filter.SerialNumber) ? "Semua" : filter.SerialNumber)}");
                     col.Item().Text($"Dibuat: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                     col.Item().PaddingBottom(6);
 

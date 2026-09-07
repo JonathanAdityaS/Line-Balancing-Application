@@ -65,6 +65,11 @@ protected readonly loadingTakt = signal(false);
   protected readonly showLoginForm = signal(false);
   protected readonly showPassword = signal(false);
 
+  // ---------- Export + toast notifikasi ----------
+  protected readonly exporting = signal<'excel' | 'pdf' | null>(null);
+  protected readonly toast = signal<{ kind: 'success' | 'error'; msg: string } | null>(null);
+  private toastTimer?: ReturnType<typeof setTimeout>;
+
   // ---------- Theme (dark default) ----------
   protected readonly theme = signal<'dark' | 'light'>('dark');
 
@@ -90,7 +95,8 @@ protected readonly loadingTakt = signal(false);
     cell: [''],
     meterType: [''],
     dateFrom: [''],
-    dateTo: ['']
+    dateTo: [''],
+    serial: ['']
   });
 
   @ViewChild('barChart') barChartRef!: ElementRef<HTMLCanvasElement>;
@@ -197,6 +203,14 @@ protected readonly loadingTakt = signal(false);
   ngOnDestroy(): void {
     if (this.refreshTimer) clearInterval(this.refreshTimer);
     if (this.nowTimer) clearInterval(this.nowTimer);
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+  }
+
+  /** Tampilkan toast notifikasi yang hilang otomatis setelah 4 detik. */
+  private showToast(kind: 'success' | 'error', msg: string): void {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toast.set({ kind, msg });
+    this.toastTimer = setTimeout(() => this.toast.set(null), 4000);
   }
 
   // ============================================================
@@ -381,10 +395,10 @@ protected readonly loadingTakt = signal(false);
   /** Reset semua filter lalu muat ulang data (cell operator tetap terkunci). */
   clearFilters(): void {
     if (this.isOperator()) {
-      this.form.patchValue({ stationId: '', meterType: '', dateFrom: '', dateTo: '' });
+      this.form.patchValue({ stationId: '', meterType: '', dateFrom: '', dateTo: '', serial: '' });
       this.applyOperatorLock();
     } else {
-      this.form.patchValue({ stationId: '', cell: '', meterType: '', dateFrom: '', dateTo: '' });
+      this.form.patchValue({ stationId: '', cell: '', meterType: '', dateFrom: '', dateTo: '', serial: '' });
     }
     this.load();
     this.fetchTaktHeatmap();
@@ -394,7 +408,7 @@ protected readonly loadingTakt = signal(false);
   /** Cek apakah ada filter aktif (untuk tombol reset). */
   get hasActiveFilter(): boolean {
     const raw = this.form.getRawValue();
-    return Boolean(raw.cell || raw.stationId || raw.meterType || raw.dateFrom || raw.dateTo);
+    return Boolean(raw.cell || raw.stationId || raw.meterType || raw.dateFrom || raw.dateTo || raw.serial);
   }
 
   /** Fetch heatmap Takt per cell/station. */
@@ -530,17 +544,44 @@ protected readonly loadingTakt = signal(false);
   // ============================================================
 
   exportExcel(): void {
+    if (this.exporting()) return;
+    this.exporting.set('excel');
     this.api.exportExcel(this.toFilter()).subscribe({
-      next: (blob) => this.downloadBlob(blob, 'line-balancing-dashboard.xlsx'),
-      error: () => this.error.set('Gagal export Excel')
+      next: (blob) => {
+        this.downloadBlob(blob, 'line-balancing-dashboard.xlsx');
+        this.exporting.set(null);
+        this.showToast('success', 'File Excel berhasil diunduh.');
+      },
+      error: (err) => {
+        this.exporting.set(null);
+        this.showToast('error', this.exportErrorText(err, 'Excel'));
+      }
     });
   }
 
   exportPdf(): void {
+    if (this.exporting()) return;
+    this.exporting.set('pdf');
     this.api.exportPdf(this.toFilter()).subscribe({
-      next: (blob) => this.downloadBlob(blob, 'line-balancing-dashboard.pdf'),
-      error: () => this.error.set('Gagal export PDF')
+      next: (blob) => {
+        this.downloadBlob(blob, 'line-balancing-dashboard.pdf');
+        this.exporting.set(null);
+        this.showToast('success', 'File PDF berhasil diunduh.');
+      },
+      error: (err) => {
+        this.exporting.set(null);
+        this.showToast('error', this.exportErrorText(err, 'PDF'));
+      }
     });
+  }
+
+  /** Pesan error export yang spesifik berdasar status HTTP. */
+  private exportErrorText(err: { status?: number }, kind: string): string {
+    if (err?.status === 403) return `Export ${kind} hanya untuk admin.`;
+    if (err?.status === 401) return 'Sesi berakhir. Silakan login ulang.';
+    if (err?.status === 400) return `Filter tidak valid untuk export ${kind}.`;
+    if (!err?.status) return 'Backend tidak terjangkau. Periksa koneksi ke 127.0.0.1:5121.';
+    return `Gagal export ${kind} (HTTP ${err.status}).`;
   }
 
   private downloadBlob(blob: Blob, filename: string): void {
@@ -772,7 +813,8 @@ protected readonly loadingTakt = signal(false);
       stationId: raw.stationId ?? undefined,
       meterTypeId: raw.meterType ?? undefined,
       dateFrom: raw.dateFrom || undefined,
-      dateTo: raw.dateTo || undefined
+      dateTo: raw.dateTo || undefined,
+      serialNumber: raw.serial?.trim() || undefined
     };
   }
 }

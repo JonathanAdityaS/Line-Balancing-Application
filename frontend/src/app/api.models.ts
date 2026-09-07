@@ -16,6 +16,7 @@ export interface KpiFilter {
   meterTypeId?: string;
   dateFrom?: string;
   dateTo?: string;
+  serialNumber?: string;
 }
 
 export interface OperatorProfile {
