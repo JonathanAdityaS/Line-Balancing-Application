@@ -76,8 +76,4 @@ export class ApiService {
     });
     return params;
   }
-
-  private toQuery(filter: KpiFilter): string {
-    return this.toParams(filter).toString();
-  }
 }

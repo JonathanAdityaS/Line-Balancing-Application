@@ -34,9 +34,8 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly error = signal('');
 protected readonly dbStatus = signal<'connected' | 'disconnected'>('disconnected');
 
-// ---------- NEW: Takt heatmap & target config ----------
+// ---------- NEW: Takt heatmap ----------
 protected readonly taktHeatmap = signal<TaktComparisonDto[]>([]);
-protected readonly taktTargets = signal<{ PerCell: Map<string, number>; PerStation: Map<string, number> }>({ PerCell: new Map(), PerStation: new Map() });
 protected readonly loadingTakt = signal(false);
 
 // ---------- Auth state ----------
@@ -364,9 +363,8 @@ protected readonly loadingTakt = signal(false);
 
     this.loadHistory(filter, 1);
 
-    // Fetch takt heatmap and targets after dashboard load
+    // Fetch takt heatmap after dashboard load
     this.fetchTaktHeatmap(filter);
-    this.fetchTaktTargets();
   }
 
   loadHistory(filter: KpiFilter, page: number): void {
@@ -402,7 +400,6 @@ protected readonly loadingTakt = signal(false);
     }
     this.load();
     this.fetchTaktHeatmap();
-    this.fetchTaktTargets();
   }
 
   /** Cek apakah ada filter aktif (untuk tombol reset). */
@@ -417,16 +414,6 @@ protected readonly loadingTakt = signal(false);
     this.api.getTaktHeatmap(filter ?? this.toFilter()).subscribe({
       next: data => this.taktHeatmap.set(data),
       error: () => this.error.set('Gagal memuat heatmap takt'),
-      complete: () => this.loadingTakt.set(false)
-    });
-  }
-
-  /** Ambil konfigurasi target takt per cell/station. */
-  fetchTaktTargets(): void {
-    this.loadingTakt.set(true);
-    this.api.getTaktTargets().subscribe({
-      next: data => this.taktTargets.set(data),
-      error: () => this.error.set('Gagal memuat target takt'),
       complete: () => this.loadingTakt.set(false)
     });
   }

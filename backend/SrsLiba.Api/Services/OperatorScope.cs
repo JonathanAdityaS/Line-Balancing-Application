@@ -37,17 +37,14 @@ public static class OperatorScope
         return cell.HasValue ? filter with { CellId = cell.Value } : filter;
     }
 
-    /// <summary>True bila pemanggil adalah operator.</summary>
-    public static bool IsOperator(ClaimsPrincipal user) =>
-        string.Equals(user.FindFirst(TokenService.IsOperatorClaim)?.Value, "true", StringComparison.OrdinalIgnoreCase);
-
     /// <summary>
     /// True bila pemanggil adalah operator yang BELUM mengonfirmasi identitas
     /// (berdasarkan claim token). Endpoint data wajib menolaknya dengan 403 —
     /// gerbang konfirmasi tidak boleh hanya mengandalkan frontend.
     /// </summary>
     public static bool IsUnconfirmedOperator(ClaimsPrincipal user) =>
-        IsOperator(user) && !string.Equals(
+        string.Equals(user.FindFirst(TokenService.IsOperatorClaim)?.Value, "true", StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(
             user.FindFirst(TokenService.IdentityConfirmedClaim)?.Value,
             "true", StringComparison.OrdinalIgnoreCase);
 }
